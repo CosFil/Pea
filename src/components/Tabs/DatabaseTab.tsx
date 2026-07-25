@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { TYPICAL_VALUES_DATABASE } from '../../data/kenakData';
 import { TypicalValueItem, BuildingAgeCategory } from '../../types/kenak';
 import { ValueCopyBadge } from '../ValueCopyBadge';
-import { Database, Filter, Search, Tag, ExternalLink } from 'lucide-react';
+import { Database, Filter, Search, Tag, ExternalLink, CheckCircle2, ArrowRight } from 'lucide-react';
+import { getXmlBuildingModel, saveXmlBuildingModel } from '../../utils/xmlModelStore';
 
 interface DatabaseTabProps {
   searchQuery: string;
@@ -12,6 +13,48 @@ interface DatabaseTabProps {
 export const DatabaseTab: React.FC<DatabaseTabProps> = ({ searchQuery, setSearchQuery }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedAge, setSelectedAge] = useState<string>('ALL');
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const handleApplyToXml = (item: TypicalValueItem) => {
+    const model = getXmlBuildingModel();
+    const numValue = parseFloat(item.value);
+
+    if (item.category === 'OPAQUE' && !isNaN(numValue)) {
+      const updatedOpaque = model.opaqueSurfaces.map((surf) => ({
+        ...surf,
+        uValue: numValue,
+      }));
+      saveXmlBuildingModel({
+        ...model,
+        opaqueSurfaces: updatedOpaque,
+      });
+      setToastMsg(`Η τυπική τιμή U = ${numValue} W/m²K (${item.title}) εφαρμόστηκε στα 2.Αδιαφανή Στοιχεία στο XML!`);
+    } else if (item.category === 'OPENING' && !isNaN(numValue)) {
+      const updatedOpenings = model.openings.map((op) => ({
+        ...op,
+        uWindow: numValue,
+      }));
+      saveXmlBuildingModel({
+        ...model,
+        openings: updatedOpenings,
+      });
+      setToastMsg(`Η τυπική τιμή U_w = ${numValue} W/m²K (${item.title}) εφαρμόστηκε στα 3.Διαφανή Στοιχεία στο XML!`);
+    } else if (item.category === 'HEATING' && !isNaN(numValue)) {
+      const updatedHeating = model.heatingSystems.map((sys) => ({
+        ...sys,
+        efficiency: numValue <= 1.0 ? numValue : numValue / 100,
+      }));
+      saveXmlBuildingModel({
+        ...model,
+        heatingSystems: updatedHeating,
+      });
+      setToastMsg(`Ο τυπικός βαθμός απόδοσης η_g = ${numValue} εφαρμόστηκε στο Σύστημα Θέρμανσης XML!`);
+    } else {
+      setToastMsg(`Η τιμή ${item.value} (${item.title}) ενημερώθηκε στο μοντέλο!`);
+    }
+
+    setTimeout(() => setToastMsg(null), 4000);
+  };
 
   const filteredItems = useMemo(() => {
     return TYPICAL_VALUES_DATABASE.filter((item) => {
@@ -122,6 +165,19 @@ export const DatabaseTab: React.FC<DatabaseTabProps> = ({ searchQuery, setSearch
         </div>
       </div>
 
+      {/* Toast Notification Banner */}
+      {toastMsg && (
+        <div className="p-3 bg-teal-500/15 border-2 border-teal-500/40 rounded-xl text-xs text-teal-800 dark:text-teal-200 flex items-center justify-between gap-3 shadow-md animate-fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
+            <span className="font-bold">{toastMsg}</span>
+          </div>
+          <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 bg-teal-500/20 rounded border border-teal-500/30 shrink-0">
+            XML Model Updated
+          </span>
+        </div>
+      )}
+
       {/* Typical Values List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredItems.map((item) => (
@@ -141,8 +197,16 @@ export const DatabaseTab: React.FC<DatabaseTabProps> = ({ searchQuery, setSearch
                   </h3>
                 </div>
 
-                <div className="shrink-0">
+                <div className="shrink-0 flex flex-col items-end gap-1.5">
                   <ValueCopyBadge value={item.value} />
+                  <button
+                    onClick={() => handleApplyToXml(item)}
+                    type="button"
+                    className="px-2 py-1 bg-teal-600 hover:bg-teal-500 text-white text-[11px] font-bold rounded-md shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Εφαρμογή στο XML</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
 

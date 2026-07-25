@@ -13,6 +13,7 @@ import { ChecklistTab } from './components/Tabs/ChecklistTab';
 import { XmlExportTab } from './components/Tabs/XmlExportTab';
 import { AutocadIntegrationTab } from './components/Tabs/AutocadIntegrationTab';
 import { AiConsultantModal } from './components/AiConsultantModal';
+import { BuildingHeaderBar } from './components/BuildingHeaderBar';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('GUIDE');
@@ -40,6 +41,9 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Persistent Building Project Status Header */}
+        <BuildingHeaderBar activeTab={activeTab} setActiveTab={setActiveTab} />
+
         {activeTab === 'GUIDE' && <GuideTab />}
         {activeTab === 'DATABASE' && (
           <DatabaseTab searchQuery={searchQuery} setSearchQuery={setSearchQuery} />

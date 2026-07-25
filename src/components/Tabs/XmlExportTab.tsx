@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FullBuildingModel, OpaqueSurfaceInput, OpeningInput, HeatingSystemInput, CoolingSystemInput } from '../../types/xmlKenak';
 import { DEFAULT_PRE79_BUILDING } from '../../data/xmlDefaults';
 import { auditBuildingModel, generateKenakXml, parseKenakXml, AuditIssue } from '../../utils/xmlExporter';
 import { GREEK_CLIMATE_STATIONS } from '../../data/climateStations';
 import { ExoikonomoEvaluator } from '../ExoikonomoEvaluator';
 import { GoogleDriveSync } from '../GoogleDriveSync';
+import { generateOptimalScenarios, saveXmlBuildingModel } from '../../utils/xmlModelStore';
 import { 
 
   FileCode, 
@@ -45,7 +46,39 @@ export const XmlExportTab: React.FC = () => {
   // Sync to local storage
   const handleUpdateModel = (updated: FullBuildingModel) => {
     setModel(updated);
-    localStorage.setItem('kenak_xml_building_model', JSON.stringify(updated));
+    saveXmlBuildingModel(updated);
+  };
+
+  // Real-time synchronization across tabs
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (e.detail) {
+        setModel(e.detail);
+      } else {
+        const saved = localStorage.getItem('kenak_xml_building_model');
+        if (saved) {
+          try {
+            setModel(JSON.parse(saved));
+          } catch (err) {}
+        }
+      }
+    };
+
+    window.addEventListener('kenakModelUpdated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('kenakModelUpdated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
+  // Auto Generate Optimal Scenarios
+  const handleGenerateAutoScenarios = () => {
+    const autoScenarios = generateOptimalScenarios(model);
+    handleUpdateModel({
+      ...model,
+      scenarios: autoScenarios,
+    });
   };
 
   // Run validation
@@ -1302,9 +1335,20 @@ export const XmlExportTab: React.FC = () => {
       {activeSection === 'SCENARIOS' && (
         <div className="space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 space-y-6">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 border-b pb-2 border-slate-100 dark:border-slate-800">
-              5. Σενάρια Συστάσεων Ενεργειακής Αναβάθμισης (ΠΕΑ)
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                5. Σενάρια Συστάσεων Ενεργειακής Αναβάθμισης (ΠΕΑ & Εξοικονομώ 2025)
+              </h3>
+
+              <button
+                onClick={handleGenerateAutoScenarios}
+                type="button"
+                className="px-3 py-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold rounded-lg shadow transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span>Αυτόματη Γεννήτρια Βέλτιστων Σεναρίων</span>
+              </button>
+            </div>
 
             <div className="space-y-4 text-xs">
               {model.scenarios.map((scen, idx) => (

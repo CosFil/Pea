@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { MATERIALS_DATABASE } from '../../data/materialsDatabase';
 import { WallLayer, ClimateZone } from '../../types/kenak';
-import { Calculator, Plus, Trash2, CheckCircle2, AlertTriangle, Layers, Maximize2, Flame, Sun } from 'lucide-react';
+import { Calculator, Plus, Trash2, CheckCircle2, AlertTriangle, Layers, Maximize2, Flame, Sun, ArrowRight, Save } from 'lucide-react';
 import { ValueCopyBadge } from '../ValueCopyBadge';
+import { getXmlBuildingModel, saveXmlBuildingModel } from '../../utils/xmlModelStore';
+import { OpaqueSurfaceInput, OpeningInput } from '../../types/xmlKenak';
 
 export const CalculatorsTab: React.FC = () => {
   const [activeCalc, setActiveCalc] = useState<'U_BUILDER' | 'U_WINDOW' | 'BOILER_OVERSIZING' | 'GEOMETRY'>('U_BUILDER');
+  const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
 
   // -------------------------------------------------------------
   // CALCULATOR 1: U-VALUE LAYER BUILDER
@@ -133,8 +136,104 @@ export const CalculatorsTab: React.FC = () => {
   // Summer shading factor approximation
   const fOvSummer = Math.max(0.05, Math.min(1.0, 1.0 - 0.015 * betaAngleDeg));
 
+  // XML Model Sync Handlers
+  const handleApplyUToXml = () => {
+    const currentModel = getXmlBuildingModel();
+    const typeLabel = elementType === 'WALL' ? 'Τοίχος' : elementType === 'ROOF' ? 'Δώμα' : 'Πυλωτή';
+    const newSurf: OpaqueSurfaceInput = {
+      id: `op-calc-${Date.now()}`,
+      name: `${typeLabel} (Υπολογισμένο U=${U_calculated.toFixed(3)})`,
+      type: elementType,
+      area: 25.0,
+      uValue: Number(U_calculated.toFixed(3)),
+      deltaUtb: 0.15,
+      orientation: 'S',
+      tiltAngle: elementType === 'ROOF' ? 0 : 90,
+      boundary: elementType === 'FLOOR_PILOTI' ? 'UNHEATED_SPACE' : 'EXTERNAL_AIR',
+      absorption: 0.60,
+      emissivity: 0.90,
+    };
+    saveXmlBuildingModel({
+      ...currentModel,
+      opaqueSurfaces: [...currentModel.opaqueSurfaces, newSurf],
+    });
+    setSyncSuccessMsg(`Προστέθηκε νέο 2.Αδιαφανές Στοιχείο (${typeLabel}) στο XML με U = ${U_calculated.toFixed(3)} W/m²K!`);
+    setTimeout(() => setSyncSuccessMsg(null), 4000);
+  };
+
+  const handleApplyWindowToXml = () => {
+    const currentModel = getXmlBuildingModel();
+    const newWin: OpeningInput = {
+      id: `win-calc-${Date.now()}`,
+      name: `Κούφωμα ${winWidth}x${winHeight}m (U_w=${calculatedUw.toFixed(2)})`,
+      area: Number(windowArea.toFixed(2)),
+      uWindow: Number(calculatedUw.toFixed(2)),
+      gGlass: uGlass <= 1.2 ? 0.60 : 0.75,
+      vInfiltration: 4.0,
+      frameRatio: frameRatio,
+      orientation: 'S',
+      fOvH: Number(fOvWinter.toFixed(2)),
+      fOvC: Number(fOvSummer.toFixed(2)),
+      fFinH: 1.0,
+      fFinC: 1.0,
+      fHorH: 1.0,
+      fHorC: 1.0,
+      fShC: 0.50,
+    };
+    saveXmlBuildingModel({
+      ...currentModel,
+      openings: [...currentModel.openings, newWin],
+    });
+    setSyncSuccessMsg(`Προστέθηκε νέο 3.Διαφανές Στοιχείο στο XML με U_w = ${calculatedUw.toFixed(2)} W/m²K & Εμβαδόν = ${windowArea.toFixed(2)}m²!`);
+    setTimeout(() => setSyncSuccessMsg(null), 4000);
+  };
+
+  const handleApplyBoilerToXml = () => {
+    const currentModel = getXmlBuildingModel();
+    const updatedHeating = currentModel.heatingSystems.map((sys, idx) => {
+      if (idx === 0) {
+        return {
+          ...sys,
+          nominalPowerKw: pNominal,
+          efficiency: Number(adjustedBoilerEff.toFixed(3)),
+        };
+      }
+      return sys;
+    });
+    saveXmlBuildingModel({
+      ...currentModel,
+      heatingSystems: updatedHeating,
+    });
+    setSyncSuccessMsg(`Ενημερώθηκε το Σύστημα Θέρμανσης στο XML με η_g = ${(adjustedBoilerEff * 100).toFixed(1)}% (P_n=${pNominal}kW)!`);
+    setTimeout(() => setSyncSuccessMsg(null), 4000);
+  };
+
+  const handleApplyGeometryToXml = () => {
+    const currentModel = getXmlBuildingModel();
+    saveXmlBuildingModel({
+      ...currentModel,
+      grossArea: Number(grossFloorAreaCalc.toFixed(2)),
+      netArea: Number(netFloorAreaCalc.toFixed(2)),
+      heatedVolume: Number(heatedVolumeCalc.toFixed(2)),
+    });
+    setSyncSuccessMsg(`Ενημερώθηκαν τα Εμβαδά (A_gross=${grossFloorAreaCalc.toFixed(1)}m², A_net=${netFloorAreaCalc.toFixed(1)}m²) & Όγκος (V=${heatedVolumeCalc.toFixed(1)}m³) στο XML!`);
+    setTimeout(() => setSyncSuccessMsg(null), 4000);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Real-time Sync Banner */}
+      {syncSuccessMsg && (
+        <div className="p-4 bg-teal-500/15 border-2 border-teal-500/40 rounded-2xl text-xs text-teal-800 dark:text-teal-200 flex items-center justify-between gap-3 shadow-md animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
+            <span className="font-bold text-sm">{syncSuccessMsg}</span>
+          </div>
+          <span className="text-[10px] font-mono font-semibold uppercase px-2 py-1 bg-teal-500/20 rounded border border-teal-500/30">
+            XML Model Updated
+          </span>
+        </div>
+      )}
       {/* Sub-nav Selector */}
       <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex items-center gap-2 overflow-x-auto shadow-sm">
         <button
@@ -278,6 +377,21 @@ export const CalculatorsTab: React.FC = () => {
                 </>
               )}
             </div>
+          </div>
+
+          {/* Direct Transfer Button to XML */}
+          <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-xl flex items-center justify-between gap-3 text-xs">
+            <span className="text-teal-800 dark:text-teal-200 font-medium">
+              Θέλετε να καταχωρίσετε το U = <strong className="font-mono">{U_calculated.toFixed(3)} W/m²K</strong> στα Αδιαφανή στοιχεία του κτιρίου;
+            </span>
+            <button
+              onClick={handleApplyUToXml}
+              type="button"
+              className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg shadow transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>Εφαρμογή ως 2.Αδιαφανές στο XML</span>
+            </button>
           </div>
 
           {/* Layer Table */}
@@ -483,6 +597,14 @@ export const CalculatorsTab: React.FC = () => {
 
               <div className="pt-3 border-t border-slate-800 space-y-2">
                 <ValueCopyBadge value={calculatedUw.toFixed(2)} label="Αντιγραφή U_w στο Πρόχειρο" />
+                <button
+                  onClick={handleApplyWindowToXml}
+                  type="button"
+                  className="w-full py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Εφαρμογή ως 3.Διαφανές στο XML</span>
+                </button>
               </div>
             </div>
           </div>
@@ -553,7 +675,17 @@ export const CalculatorsTab: React.FC = () => {
                 </div>
               </div>
 
-              <ValueCopyBadge value={adjustedBoilerEff.toFixed(3)} label="Αντιγραφή η_g1" />
+              <div className="pt-3 border-t border-slate-800 space-y-2">
+                <ValueCopyBadge value={adjustedBoilerEff.toFixed(3)} label="Αντιγραφή η_g1" />
+                <button
+                  onClick={handleApplyBoilerToXml}
+                  type="button"
+                  className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Ενημέρωση η_g στο Σύστημα Θέρμανσης XML</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -709,6 +841,17 @@ export const CalculatorsTab: React.FC = () => {
                     <span className="text-amber-300">Χειμώνας (F_ov_h): {fOvWinter.toFixed(2)}</span>
                     <span className="text-emerald-300">Θέρος (F_ov_c): {fOvSummer.toFixed(2)}</span>
                   </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={handleApplyGeometryToXml}
+                    type="button"
+                    className="w-full py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Ενημέρωση Εμβαδών & Όγκου στο XML</span>
+                  </button>
                 </div>
               </div>
             </div>
