@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
 import { MapPin, Search, Check, X, AlertTriangle, Key, ExternalLink, Compass, Navigation, Building2, Map as MapIcon } from 'lucide-react';
 import { FullBuildingModel } from '../types/xmlKenak';
 import { GREEK_CLIMATE_STATIONS } from '../data/climateStations';
@@ -35,9 +35,8 @@ function MapLocationHandler({
   }) => void;
 }) {
   const map = useMap();
-  const geocodingLib = useMapsLibrary('geocoding');
 
-  // Reverse geocode via OpenStreetMap Nominatim when Google Maps geocoder fails or lacks billing
+  // Reverse geocode via OpenStreetMap Nominatim API (Free, high accuracy in Greece, no Google Cloud billing required)
   const reverseGeocodeNominatim = useCallback(
     async (lat: number, lng: number) => {
       try {
@@ -81,55 +80,9 @@ function MapLocationHandler({
   // Reverse geocode when position changes
   const reverseGeocode = useCallback(
     (lat: number, lng: number) => {
-      if (geocodingLib) {
-        try {
-          const geocoder = new geocodingLib.Geocoder();
-          geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-            if (status === 'OK' && results && results[0]) {
-              const res = results[0];
-              let streetName = '';
-              let streetNumber = '';
-              let munci = '';
-              let pref = '';
-              let pc = '';
-
-              res.address_components.forEach((comp) => {
-                const types = comp.types;
-                if (types.includes('route')) streetName = comp.long_name;
-                if (types.includes('street_number')) streetNumber = comp.long_name;
-                if (types.includes('locality') || types.includes('administrative_area_level_3')) {
-                  munci = comp.long_name;
-                }
-                if (types.includes('administrative_area_level_2') || types.includes('administrative_area_level_1')) {
-                  if (!pref || types.includes('administrative_area_level_2')) {
-                    pref = comp.long_name;
-                  }
-                }
-                if (types.includes('postal_code')) pc = comp.long_name;
-              });
-
-              const fullStreet = [streetName, streetNumber].filter(Boolean).join(' ') || res.formatted_address;
-
-              onLocationDetailsFound({
-                address: fullStreet,
-                prefecture: pref.toUpperCase().replace('REGIONAL UNIT OF ', '').replace('ΝΟΜΟΣ ', ''),
-                municipality: munci.toUpperCase().replace('ΔΗΜΟΣ ', ''),
-                postcode: pc,
-              });
-            } else {
-              // Status not OK (e.g., Billing disabled, REQUEST_DENIED) -> Fallback to Nominatim
-              reverseGeocodeNominatim(lat, lng);
-            }
-          });
-          return;
-        } catch (err) {
-          console.warn('Google geocoder failed, falling back to Nominatim:', err);
-        }
-      }
-
       reverseGeocodeNominatim(lat, lng);
     },
-    [geocodingLib, onLocationDetailsFound, reverseGeocodeNominatim]
+    [reverseGeocodeNominatim]
   );
 
   // When map is clicked
@@ -302,69 +255,14 @@ export const PropertyMapModal: React.FC<PropertyMapModalProps> = ({
     [matchClimateInfo]
   );
 
-  // Manual search trigger using standard Google Maps Geocoder or Nominatim API
+  // Address search trigger using OpenStreetMap Nominatim API (Free & reliable)
   const handleSearchAddress = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    setIsSearching(true);
-    setSearchError(null);
-
     const query = searchQuery.includes('Ελλάδα') || searchQuery.includes('Greece')
       ? searchQuery
       : `${searchQuery}, Ελλάδα`;
-
-    // Try Google Maps Geocoder if loaded
-    if ((window as any).google?.maps?.Geocoder) {
-      try {
-        const geocoder = new (window as any).google.maps.Geocoder();
-        geocoder.geocode({ address: query }, (results: any, status: any) => {
-          if (status === 'OK' && results && results[0]) {
-            const res = results[0];
-            const newLat = res.geometry.location.lat();
-            const newLng = res.geometry.location.lng();
-            setPosition({ lat: newLat, lng: newLng });
-
-            let streetName = '';
-            let streetNumber = '';
-            let munci = '';
-            let pref = '';
-            let pc = '';
-
-            res.address_components.forEach((comp: any) => {
-              const types = comp.types;
-              if (types.includes('route')) streetName = comp.long_name;
-              if (types.includes('street_number')) streetNumber = comp.long_name;
-              if (types.includes('locality') || types.includes('administrative_area_level_3')) {
-                munci = comp.long_name;
-              }
-              if (types.includes('administrative_area_level_2') || types.includes('administrative_area_level_1')) {
-                if (!pref || types.includes('administrative_area_level_2')) {
-                  pref = comp.long_name;
-                }
-              }
-              if (types.includes('postal_code')) pc = comp.long_name;
-            });
-
-            const fullStreet = [streetName, streetNumber].filter(Boolean).join(' ') || res.formatted_address;
-            setAddress(fullStreet);
-            const cleanMunci = munci.toUpperCase().replace('ΔΗΜΟΣ ', '');
-            const cleanPref = pref.toUpperCase().replace('REGIONAL UNIT OF ', '').replace('ΝΟΜΟΣ ', '');
-            if (cleanMunci) setMunicipality(cleanMunci);
-            if (cleanPref) setPrefecture(cleanPref);
-            if (pc) setPostcode(pc);
-
-            matchClimateInfo(cleanPref || prefecture, cleanMunci || municipality, fullStreet);
-            setIsSearching(false);
-          } else {
-            runNominatimSearch(query);
-          }
-        });
-        return;
-      } catch (err) {
-        console.warn('Google geocoder error, falling back to nominatim:', err);
-      }
-    }
 
     await runNominatimSearch(query);
   };
