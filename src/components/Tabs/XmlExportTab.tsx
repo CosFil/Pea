@@ -239,17 +239,66 @@ export const XmlExportTab: React.FC = () => {
   const handleUploadJsonBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!window.confirm(`Είστε βέβαιοι ότι θέλετε να αντικαταστήσετε τα τρέχοντα δεδομένα με τα δεδομένα από το αρχείο "${file.name}";`)) {
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed && typeof parsed === 'object') {
-          handleUpdateModel(parsed);
-          setPresetToast('✅ Επιτυχής εισαγωγή μοντέλου από αρχείο JSON!');
-          setTimeout(() => setPresetToast(null), 4000);
+          // Schema Validation & Normalization
+          const validatedModel: FullBuildingModel = {
+            protocolId: parsed.protocolId || '',
+            buildingName: parsed.buildingName || 'Εισαχθέν Κτίριο',
+            buildingUse: parsed.buildingUse || 'RESIDENTIAL',
+            isEntireBuilding: typeof parsed.isEntireBuilding === 'boolean' ? parsed.isEntireBuilding : true,
+            buildingUnitTitle: parsed.buildingUnitTitle || '',
+            ownershipType: parsed.ownershipType || 'Πλήρης Κυριότητα',
+            address: parsed.address || '',
+            prefecture: parsed.prefecture || '',
+            municipality: parsed.municipality || '',
+            ownerName: parsed.ownerName || '',
+            afm: parsed.afm || '',
+            kaek: parsed.kaek || '',
+            climaticStation: parsed.climaticStation || '',
+            climateZone: ['A', 'B', 'C', 'D'].includes(parsed.climateZone) ? parsed.climateZone : 'B',
+            altitudeAbove500m: Boolean(parsed.altitudeAbove500m),
+            yearBuilt: parsed.yearBuilt || 1980,
+            ageCategory: parsed.ageCategory || '1979_2010',
+            grossArea: parsed.grossArea || 100,
+            netArea: parsed.netArea || 88,
+            heatedVolume: parsed.heatedVolume || 300,
+            freshAirFlow: parsed.freshAirFlow || 75,
+            inspectorName: parsed.inspectorName || '',
+            inspectorRegNum: parsed.inspectorRegNum || '',
+            lat: parsed.lat,
+            lng: parsed.lng,
+            zoneName: parsed.zoneName || model.zoneName || 'Θερμική Ζώνη 1',
+            postcode: parsed.postcode || model.postcode || '10431',
+            inspectionDate: parsed.inspectionDate || model.inspectionDate || new Date().toISOString().split('T')[0],
+            inspectorNotes: parsed.inspectorNotes || model.inspectorNotes || '',
+            dhwDailyDemand: parsed.dhwDailyDemand || model.dhwDailyDemand || 100,
+            opaqueSurfaces: Array.isArray(parsed.opaqueSurfaces) ? parsed.opaqueSurfaces : [],
+            openings: Array.isArray(parsed.openings) ? parsed.openings : [],
+            heatingSystems: Array.isArray(parsed.heatingSystems) ? parsed.heatingSystems : model.heatingSystems,
+            coolingSystems: Array.isArray(parsed.coolingSystems) ? parsed.coolingSystems : model.coolingSystems,
+            dhwSystem: parsed.dhwSystem || model.dhwSystem,
+            renewableSystem: parsed.renewableSystem || model.renewableSystem,
+            scenarios: Array.isArray(parsed.scenarios) ? parsed.scenarios : [],
+          };
+
+          handleUpdateModel(validatedModel);
+          setPresetToast(`✅ Επιτυχής εισαγωγή & επαλήθευση μοντέλου από το αρχείο "${file.name}"!`);
+          setTimeout(() => setPresetToast(null), 4500);
+        } else {
+          throw new Error('Μη έγκυρη δομή JSON');
         }
       } catch (err) {
-        alert('Αποτυχία ανάγνωσης αρχείου JSON. Βεβαιωθείτε ότι το αρχείο είναι έγκυρο backup.');
+        alert('Αποτυχία ανάγνωσης/επαλήθευσης αρχείου JSON. Βεβαιωθείτε ότι το αρχείο είναι έγκυρο backup του ΠΕΑ.');
       }
     };
     reader.readAsText(file);

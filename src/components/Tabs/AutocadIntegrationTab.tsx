@@ -168,6 +168,22 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
       const parsed = parser.parseSync(rawDxf);
       setParsedDxfObj(parsed);
 
+      // Automatic unit detection from DXF header ($INSUNITS)
+      let activeScale = cadScaleFactor;
+      if (parsed?.header?.$INSUNITS !== undefined) {
+        const unitsVal = parsed.header.$INSUNITS;
+        if (unitsVal === 4) {
+          activeScale = 0.001; // mm -> m
+          setCadScaleFactor(0.001);
+        } else if (unitsVal === 5) {
+          activeScale = 0.01; // cm -> m
+          setCadScaleFactor(0.01);
+        } else if (unitsVal === 6) {
+          activeScale = 1.0; // m
+          setCadScaleFactor(1.0);
+        }
+      }
+
       let totalLen = 0;
       let totalArea = 0;
       let windowArea = 0;
@@ -187,8 +203,8 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
             const vertices = entity.vertices || [];
             let len = 0;
             for (let i = 0; i < vertices.length - 1; i++) {
-              const dx = (vertices[i + 1].x - vertices[i].x) * cadScaleFactor;
-              const dy = (vertices[i + 1].y - vertices[i].y) * cadScaleFactor;
+              const dx = (vertices[i + 1].x - vertices[i].x) * activeScale;
+              const dy = (vertices[i + 1].y - vertices[i].y) * activeScale;
               len += Math.sqrt(dx * dx + dy * dy);
             }
             if (entity.shape) {
@@ -196,8 +212,8 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
               const first = vertices[0];
               const last = vertices[vertices.length - 1];
               if (first && last) {
-                const dx = (first.x - last.x) * cadScaleFactor;
-                const dy = (first.y - last.y) * cadScaleFactor;
+                const dx = (first.x - last.x) * activeScale;
+                const dy = (first.y - last.y) * activeScale;
                 len += Math.sqrt(dx * dx + dy * dy);
               }
             }
@@ -207,8 +223,8 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
             if (vertices.length >= 3) {
               for (let i = 0; i < vertices.length; i++) {
                 const j = (i + 1) % vertices.length;
-                polyArea += (vertices[i].x * cadScaleFactor) * (vertices[j].y * cadScaleFactor);
-                polyArea -= (vertices[j].x * cadScaleFactor) * (vertices[i].y * cadScaleFactor);
+                polyArea += (vertices[i].x * activeScale) * (vertices[j].y * activeScale);
+                polyArea -= (vertices[j].x * activeScale) * (vertices[i].y * activeScale);
               }
               polyArea = Math.abs(polyArea) / 2.0;
             }
@@ -245,11 +261,27 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
           } else if (entity.type === 'LINE') {
             const v = entity.vertices;
             if (v && v.length >= 2 && v[0] && v[1]) {
-              const dx = (v[1].x - v[0].x) * cadScaleFactor;
-              const dy = (v[1].y - v[0].y) * cadScaleFactor;
+              const dx = (v[1].x - v[0].x) * activeScale;
+              const dy = (v[1].y - v[0].y) * activeScale;
               const len = Math.sqrt(dx * dx + dy * dy);
               totalLen += len;
             }
+          } else if (entity.type === 'CIRCLE') {
+            const r = (entity.radius || 0) * activeScale;
+            const cArea = Math.PI * r * r;
+            const cLen = 2 * Math.PI * r;
+            if (layer.includes('ZONE') || layer.includes('ΖΩΝΗ')) {
+              totalArea += cArea;
+            } else {
+              totalLen += cLen;
+            }
+          } else if (entity.type === 'ARC') {
+            const r = (entity.radius || 0) * activeScale;
+            const startAngle = entity.startAngle || 0;
+            const endAngle = entity.endAngle || 0;
+            const angleSpan = Math.abs(endAngle - startAngle);
+            const arcLen = r * angleSpan;
+            totalLen += arcLen;
           }
         });
       }

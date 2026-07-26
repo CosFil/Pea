@@ -34,7 +34,44 @@ const provider = new GoogleAuthProvider();
 DRIVE_SCOPES.forEach((scope) => provider.addScope(scope));
 
 let isSigningIn = false;
-let cachedAccessToken: string | null = null;
+const TOKEN_KEY = 'gdrive_access_token';
+const TOKEN_TIME_KEY = 'gdrive_token_timestamp';
+const TOKEN_EXPIRY_MS = 55 * 60 * 1000; // 55 minutes
+
+const getStoredToken = (): string | null => {
+  try {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    const timeStr = sessionStorage.getItem(TOKEN_TIME_KEY);
+    if (!token || !timeStr) return null;
+    const elapsed = Date.now() - parseInt(timeStr, 10);
+    if (elapsed > TOKEN_EXPIRY_MS) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_TIME_KEY);
+      return null;
+    }
+    return token;
+  } catch {
+    return null;
+  }
+};
+
+const setStoredToken = (token: string) => {
+  try {
+    sessionStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(TOKEN_TIME_KEY, Date.now().toString());
+  } catch (err) {
+    console.error('Failed to store token in sessionStorage:', err);
+  }
+};
+
+const clearStoredToken = () => {
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_TIME_KEY);
+  } catch {}
+};
+
+let cachedAccessToken: string | null = getStoredToken();
 
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
@@ -42,14 +79,16 @@ export const initAuth = (
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      if (cachedAccessToken) {
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
+      const activeToken = getStoredToken() || cachedAccessToken;
+      if (activeToken) {
+        cachedAccessToken = activeToken;
+        if (onAuthSuccess) onAuthSuccess(user, activeToken);
       } else if (!isSigningIn) {
-        // Token might need refresh or re-login if popup was closed
         if (onAuthFailure) onAuthFailure();
       }
     } else {
       cachedAccessToken = null;
+      clearStoredToken();
       if (onAuthFailure) onAuthFailure();
     }
   });
@@ -65,6 +104,7 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     }
 
     cachedAccessToken = credential.accessToken;
+    setStoredToken(cachedAccessToken);
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Sign in error:', error);
@@ -75,12 +115,13 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = (): string | null => {
-  return cachedAccessToken;
+  return getStoredToken() || cachedAccessToken;
 };
 
 export const googleLogout = async () => {
   await signOut(auth);
   cachedAccessToken = null;
+  clearStoredToken();
 };
 
 export interface DriveFile {
