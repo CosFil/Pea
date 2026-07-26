@@ -16,7 +16,7 @@ import { AiConsultantModal } from './components/AiConsultantModal';
 import { BuildingHeaderBar } from './components/BuildingHeaderBar';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('GUIDE');
+  const [activeTab, setActiveTab] = useState<TabType>('XML_EXPORT');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAiOpen, setIsAiOpen] = useState(false);
 
@@ -77,6 +77,11 @@ export default function App() {
       {/* Gemini AI Consultant Modal */}
       {isAiEnabled && (
         <AiConsultantModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
+      )}
+    </div>
+  );
+}
+
       )}
     </div>
   );
