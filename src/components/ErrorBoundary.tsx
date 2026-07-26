@@ -1,4 +1,4 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -10,31 +10,30 @@ interface State {
   error: Error | null;
 }
 
-export class ErrorBoundary extends React.Component {
-  // @ts-ignore
-  state: State = {
-    hasError: false,
-    error: null,
-  };
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+  }
 
-  static getDerivedStateFromError(error: Error): State {
+  public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught Error in Component Tree:', error, errorInfo);
   }
 
   private handleReset = () => {
-    (this as any).setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null });
     window.location.reload();
   };
 
-  render() {
-    const state = (this as any).state as State;
-    const props = (this as any).props as Props;
-
-    if (state.hasError) {
+  public render() {
+    if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-2xl text-center space-y-4">
@@ -47,9 +46,9 @@ export class ErrorBoundary extends React.Component {
               Προέκυψε σφάλμα κατά την εκτέλεση της εφαρμογής. Τα δεδομένα σας στο localStorage παραμένουν ασφαλή.
             </p>
 
-            {state.error && (
+            {this.state.error && (
               <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 text-left text-[11px] font-mono text-red-400 overflow-x-auto max-h-32 scrollbar-thin">
-                {state.error.toString()}
+                {this.state.error.toString()}
               </div>
             )}
 
@@ -66,6 +65,6 @@ export class ErrorBoundary extends React.Component {
       );
     }
 
-    return props.children;
+    return this.props.children;
   }
 }

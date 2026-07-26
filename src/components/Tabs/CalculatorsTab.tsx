@@ -147,7 +147,7 @@ export const CalculatorsTab: React.FC = () => {
     const newSurf: OpaqueSurfaceInput = {
       id: `op-calc-${Date.now()}`,
       name: `${typeLabel} (Υπολογισμένο U=${U_calculated.toFixed(3)})`,
-      type: elementType,
+      type: elementType === 'FLOOR_PILOTI' ? 'PILOTI' : elementType,
       area: 25.0,
       uValue: Number(U_calculated.toFixed(3)),
       deltaUtb: calculatedDeltaUtb,

@@ -10,6 +10,14 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Startup Environment Verification
+  if (process.env.NODE_ENV === "production" && !process.env.GEMINI_API_KEY) {
+    console.error("==========================================================");
+    console.error("FATAL WARNING: GEMINI_API_KEY is not defined in production!");
+    console.error("AI Assistant requests will fail until configured in .env");
+    console.error("==========================================================");
+  }
+
   app.use(express.json({ limit: "1mb" }));
 
   // API endpoints
@@ -20,9 +28,19 @@ async function startServer() {
   // Simple in-memory rate limiter for AI endpoint (max 15 requests / minute per IP)
   const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
+  // Periodic cleanup of expired rate limit entries to prevent memory leaks
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, data] of rateLimitMap.entries()) {
+      if (now > data.resetTime) {
+        rateLimitMap.delete(ip);
+      }
+    }
+  }, 120000); // Clean up every 2 minutes
+
   app.post("/api/ai-assistant", async (req, res) => {
     // 1. Rate Limiting Check
-    const clientIp = req.ip || req.socket.remoteAddress || "global";
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.ip || req.socket.remoteAddress || "global";
     const now = Date.now();
     const rateData = rateLimitMap.get(clientIp) || { count: 0, resetTime: now + 60000 };
 
@@ -34,7 +52,13 @@ async function startServer() {
     }
     rateLimitMap.set(clientIp, rateData);
 
+    const remaining = Math.max(0, 15 - rateData.count);
+    res.setHeader("X-RateLimit-Limit", "15");
+    res.setHeader("X-RateLimit-Remaining", remaining.toString());
+
     if (rateData.count > 15) {
+      const retryAfterSecs = Math.ceil((rateData.resetTime - now) / 1000);
+      res.setHeader("Retry-After", retryAfterSecs.toString());
       return res.status(429).json({
         error: "Υπερβολικός αριθμός αιτημάτων. Παρακαλώ περιμένετε ένα λεπτό πριν προσπαθήσετε ξανά."
       });

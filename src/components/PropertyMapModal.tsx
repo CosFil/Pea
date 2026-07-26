@@ -115,7 +115,7 @@ function MapLocationHandler({
       >
         <AdvancedMarker
           position={position}
-          gmpDraggable={true}
+          draggable={true}
           onDragEnd={(e) => {
             if (e.latLng) {
               const newLat = e.latLng.lat();
