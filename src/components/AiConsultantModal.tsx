@@ -70,6 +70,14 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({ isOpen, on
         }),
       });
 
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          'Ο Ψηφιακός Σύμβουλος χρειάζεται server-side λειτουργία (Node.js/Express) και δεν είναι διαθέσιμος σε στατικό hosting όπως το GitHub Pages. ' +
+          'Για να τον δοκιμάσετε, τρέξτε την εφαρμογή τοπικά (`npm run build && npm start`) ή αναπτύξτε τη σε περιβάλλον που υποστηρίζει server (π.χ. Cloud Run, Render).'
+        );
+      }
+
       const resData = await response.json();
 
       if (!response.ok) {
