@@ -123,14 +123,16 @@ export async function uploadXmlToDrive(
   const delimiter = `\r\n--${boundary}\r\n`;
   const closeDelimiter = `\r\n--${boundary}--`;
 
-  const multipartRequestBody =
-    delimiter +
-    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-    JSON.stringify(metadata) +
-    delimiter +
-    'Content-Type: application/xml; charset=UTF-8\r\n\r\n' +
-    xmlContent +
-    closeDelimiter;
+  const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json; charset=UTF-8' });
+  const xmlBlob = new Blob([xmlContent], { type: 'application/xml; charset=UTF-8' });
+
+  const multipartBlob = new Blob([
+    `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n`,
+    metadataBlob,
+    `${delimiter}Content-Type: application/xml; charset=UTF-8\r\n\r\n`,
+    xmlBlob,
+    closeDelimiter
+  ]);
 
   const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,modifiedTime,webViewLink', {
     method: 'POST',
@@ -138,7 +140,7 @@ export async function uploadXmlToDrive(
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': `multipart/related; boundary=${boundary}`,
     },
-    body: multipartRequestBody,
+    body: multipartBlob,
   });
 
   if (!response.ok) {

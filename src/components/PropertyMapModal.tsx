@@ -43,7 +43,7 @@ function MapLocationHandler({
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-          { headers: { 'Accept-Language': 'el,en' } }
+          { headers: { 'Accept-Language': 'el,en', 'User-Agent': 'PEAKenakInspectorApp/1.0' } }
         );
         const data = await res.json();
         if (data && data.address) {
@@ -390,7 +390,7 @@ export const PropertyMapModal: React.FC<PropertyMapModalProps> = ({
       try {
         const response = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(q.trim())}&limit=1`,
-          { headers: { 'Accept-Language': 'el,en' } }
+          { headers: { 'Accept-Language': 'el,en', 'User-Agent': 'PEAKenakInspectorApp/1.0' } }
         );
         const data = await response.json();
         if (data && data.length > 0) {
@@ -639,7 +639,7 @@ export const PropertyMapModal: React.FC<PropertyMapModalProps> = ({
                     >
                       <option value="A">Ζώνη Α (Κρήτη / Νησιά)</option>
                       <option value="B">Ζώνη Β (Αττική / Πελοπόννησος)</option>
-                      <option value="G">Ζώνη Γ (Θεσσαλία / Μακεδονία)</option>
+                      <option value="C">Ζώνη Γ (Θεσσαλία / Μακεδονία)</option>
                       <option value="D">Ζώνη Δ (Δυτ. Μακεδονία / Ορεινά)</option>
                     </select>
                   </div>

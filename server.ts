@@ -53,7 +53,8 @@ async function startServer() {
         },
       });
 
-      res.json({ text: response.text });
+      const aiText = response.text || "Δεν παρήχθη απάντηση από το μοντέλο AI (πιθανώς λόγω φίλτρων περιεχομένου ή κενού αποτελέσματος).";
+      res.json({ text: aiText });
     } catch (error: any) {
       console.error("Gemini API error:", error);
       res.status(500).json({
