@@ -126,7 +126,8 @@ export const GoogleDriveSync: React.FC<GoogleDriveSyncProps> = ({
     setLoading(true);
     setStatusMessage(null);
     try {
-      const fileName = `PEA_${currentModel.afm || '000000000'}_${currentModel.buildingName.replace(/[^a-zA-Z0-9]/g, '_')}.xml`;
+      const safeBuildingName = (currentModel.buildingName || 'building').replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `PEA_${currentModel.afm || '000000000'}_${safeBuildingName}.xml`;
       const uploaded = await uploadXmlToDrive(token, fileName, xmlString);
       setStatusMessage({
         type: 'success',

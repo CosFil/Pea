@@ -53,6 +53,8 @@ interface AutocadIntegrationTabProps {
   onNavigateToXml?: () => void;
 }
 
+import { copyToClipboard } from '../../utils/clipboard';
+
 export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ onNavigateToXml }) => {
   const [dxfText, setDxfText] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
@@ -241,10 +243,13 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
               totalLen += len;
             }
           } else if (entity.type === 'LINE') {
-            const dx = (entity.vertices[1].x - entity.vertices[0].x) * cadScaleFactor;
-            const dy = (entity.vertices[1].y - entity.vertices[0].y) * cadScaleFactor;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            totalLen += len;
+            const v = entity.vertices;
+            if (v && v.length >= 2 && v[0] && v[1]) {
+              const dx = (v[1].x - v[0].x) * cadScaleFactor;
+              const dy = (v[1].y - v[0].y) * cadScaleFactor;
+              const len = Math.sqrt(dx * dx + dy * dy);
+              totalLen += len;
+            }
           }
         });
       }
@@ -577,10 +582,12 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
   };
 
   // Copy LISP
-  const handleCopyLisp = () => {
-    navigator.clipboard.writeText(sampleLispCode);
-    setCopiedLisp(true);
-    setTimeout(() => setCopiedLisp(false), 2500);
+  const handleCopyLisp = async () => {
+    const success = await copyToClipboard(sampleLispCode);
+    if (success) {
+      setCopiedLisp(true);
+      setTimeout(() => setCopiedLisp(false), 2500);
+    }
   };
 
   // Download .lsp

@@ -46,7 +46,7 @@ export const CalculatorsTab: React.FC = () => {
   const kenakLimits: Record<ClimateZone, { WALL: number; ROOF: number; FLOOR_PILOTI: number }> = {
     A: { WALL: 0.45, ROOF: 0.35, FLOOR_PILOTI: 0.50 },
     B: { WALL: 0.40, ROOF: 0.30, FLOOR_PILOTI: 0.45 },
-    G: { WALL: 0.35, ROOF: 0.25, FLOOR_PILOTI: 0.40 },
+    C: { WALL: 0.35, ROOF: 0.25, FLOOR_PILOTI: 0.40 },
     D: { WALL: 0.30, ROOF: 0.20, FLOOR_PILOTI: 0.35 },
   };
 
@@ -331,7 +331,7 @@ export const CalculatorsTab: React.FC = () => {
                 >
                   <option value="A">Ζώνη Α (Κρήτη/Νήσοι)</option>
                   <option value="B">Ζώνη Β (Αττική/Πελ.)</option>
-                  <option value="G">Ζώνη Γ (Μακεδονία)</option>
+                  <option value="C">Ζώνη Γ (Μακεδονία)</option>
                   <option value="D">Ζώνη Δ (Ορεινά)</option>
                 </select>
               </div>

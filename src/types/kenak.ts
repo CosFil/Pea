@@ -1,4 +1,4 @@
-export type ClimateZone = 'A' | 'B' | 'G' | 'D';
+export type ClimateZone = 'A' | 'B' | 'C' | 'D';
 
 export type BuildingAgeCategory = 'PRE_1979' | '1979_2010' | 'POST_2010';
 

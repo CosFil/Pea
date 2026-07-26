@@ -31,6 +31,8 @@ import {
   Wind
 } from 'lucide-react';
 
+import { copyToClipboard } from '../../utils/clipboard';
+
 type ToteePeriod = 'PRE_1979' | '1979_2010' | 'POST_2010' | 'EXOIKONOMO';
 
 const PERIOD_LABELS: Record<ToteePeriod, string> = {
@@ -197,7 +199,8 @@ export const XmlExportTab: React.FC = () => {
 
   // Handlers for Download XML
   const handleDownloadXml = () => {
-    const filename = `PEA_${model.afm || '000000000'}_${model.buildingName.replace(/[^a-zA-Z0-9]/g, '_')}.xml`;
+    const safeBuildingName = (model.buildingName || 'building').replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `PEA_${model.afm || '000000000'}_${safeBuildingName}.xml`;
     const blob = new Blob([xmlString], { type: 'application/xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -210,10 +213,12 @@ export const XmlExportTab: React.FC = () => {
   };
 
   // Handlers for Copy XML
-  const handleCopyXml = () => {
-    navigator.clipboard.writeText(xmlString);
-    setCopiedXml(true);
-    setTimeout(() => setCopiedXml(false), 2000);
+  const handleCopyXml = async () => {
+    const success = await copyToClipboard(xmlString);
+    if (success) {
+      setCopiedXml(true);
+      setTimeout(() => setCopiedXml(false), 2000);
+    }
   };
 
   const [presetToast, setPresetToast] = useState<string | null>(null);

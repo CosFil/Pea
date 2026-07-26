@@ -14,6 +14,33 @@ export function auditBuildingModel(model: FullBuildingModel): AuditIssue[] {
   const issues: AuditIssue[] = [];
 
   // Admin checks
+  if (!model.buildingName || !model.buildingName.trim()) {
+    issues.push({
+      type: 'ERROR',
+      code: 'ERR_NAME_EMPTY',
+      field: 'Όνομα/Περιγραφή Κτιρίου',
+      message: 'Συμπληρώστε το όνομα ή την περιγραφή του κτιρίου/ιδιοκτησίας.',
+    });
+  }
+
+  if (!model.address || !model.address.trim()) {
+    issues.push({
+      type: 'ERROR',
+      code: 'ERR_ADDRESS_EMPTY',
+      field: 'Διεύθυνση Ακινήτου',
+      message: 'Συμπληρώστε τη διεύθυνση του ακινήτου (οδό, αριθμό, περιοχή).',
+    });
+  }
+
+  if (!model.ownerName || !model.ownerName.trim()) {
+    issues.push({
+      type: 'ERROR',
+      code: 'ERR_OWNER_EMPTY',
+      field: 'Ονοματεπώνυμο Ιδιοκτήτη',
+      message: 'Συμπληρώστε το ονοματεπώνυμο του ιδιοκτήτη.',
+    });
+  }
+
   if (!model.afm || model.afm.trim().length !== 9 || !/^\d+$/.test(model.afm.trim())) {
     issues.push({
       type: 'ERROR',

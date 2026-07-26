@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { InspectionData, BuildingUse, ClimateZone } from '../../types/kenak';
 import { ClipboardCheck, Printer, Copy, Check, Download, RefreshCw, Save } from 'lucide-react';
 
+import { copyToClipboard } from '../../utils/clipboard';
+
 export const ChecklistTab: React.FC = () => {
   const [data, setData] = useState<InspectionData>(() => {
     const saved = localStorage.getItem('kenak_inspection_data');
@@ -64,7 +66,7 @@ export const ChecklistTab: React.FC = () => {
     };
   }, []);
 
-  const handleCopyMarkdown = () => {
+  const handleCopyMarkdown = async () => {
     const md = `
 # ΦΥΛΛΟ ΑΥΤΟΨΙΑΣ ΕΝΕΡΓΕΙΑΚΗΣ ΕΠΙΘΕΩΡΗΣΗΣ (ΠΕΑ)
 **Ημερομηνία:** ${data.inspectDate}
@@ -86,9 +88,11 @@ export const ChecklistTab: React.FC = () => {
 ### 2. ΣΗΜΕΙΩΣΕΙΣ ΑΥΤΟΨΙΑΣ
 ${data.notes}
 `;
-    navigator.clipboard.writeText(md.trim());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const success = await copyToClipboard(md.trim());
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handlePrint = () => {

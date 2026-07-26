@@ -15,9 +15,9 @@ export const BuildingHeaderBar: React.FC<BuildingHeaderBarProps> = ({ activeTab,
   const [isMapModalOpen, setIsMapModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    const handleSync = (e: any) => {
-      if (e.detail) {
-        setModel(e.detail);
+    const handleSync = (e?: Event) => {
+      if (e && 'detail' in e && (e as CustomEvent).detail) {
+        setModel((e as CustomEvent).detail);
       } else {
         setModel(getXmlBuildingModel());
       }

@@ -56,7 +56,7 @@ export const ExoikonomoEvaluator: React.FC<ExoikonomoEvaluatorProps> = ({ model 
   const [budgetScen1, setBudgetScen1] = useState<number>(model.exoikonomoBudgetScen1 || 18500);
   const [degreeDaysK1, setDegreeDaysK1] = useState<number>(model.degreeDaysFactorK1 || 1.05);
 
-  const scen1SavingPercent = model.scenarios[0]?.estimatedSavingPercent || 45;
+  const scen1SavingPercent = model.scenarios?.[0]?.estimatedSavingPercent || 45;
   const scen1EnergyKwh = existingEnergyKwh * (1 - scen1SavingPercent / 100);
   const scen1RatioT = scen1EnergyKwh / refEnergyKwh;
   const scen1Class = calculateEnergyClass(scen1RatioT);
