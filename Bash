@@ -1,3 +1,0 @@
-git add .
-git commit -m "Fix GitHub Pages base path for subpath deployment"
-git push origin main
