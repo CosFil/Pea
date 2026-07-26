@@ -19,7 +19,7 @@ export const DatabaseTab: React.FC<DatabaseTabProps> = ({ searchQuery, setSearch
     const model = getXmlBuildingModel();
     const numValue = parseFloat(item.value);
 
-    if (item.category === 'OPAQUE' && !isNaN(numValue)) {
+    if (item.category === 'KELYFOS' && !isNaN(numValue)) {
       const updatedOpaque = model.opaqueSurfaces.map((surf) => ({
         ...surf,
         uValue: numValue,
@@ -29,7 +29,7 @@ export const DatabaseTab: React.FC<DatabaseTabProps> = ({ searchQuery, setSearch
         opaqueSurfaces: updatedOpaque,
       });
       setToastMsg(`Η τυπική τιμή U = ${numValue} W/m²K (${item.title}) εφαρμόστηκε στα 2.Αδιαφανή Στοιχεία στο XML!`);
-    } else if (item.category === 'OPENING' && !isNaN(numValue)) {
+    } else if (item.category === 'KOUFOMATA' && !isNaN(numValue)) {
       const updatedOpenings = model.openings.map((op) => ({
         ...op,
         uWindow: numValue,
@@ -39,7 +39,7 @@ export const DatabaseTab: React.FC<DatabaseTabProps> = ({ searchQuery, setSearch
         openings: updatedOpenings,
       });
       setToastMsg(`Η τυπική τιμή U_w = ${numValue} W/m²K (${item.title}) εφαρμόστηκε στα 3.Διαφανή Στοιχεία στο XML!`);
-    } else if (item.category === 'HEATING' && !isNaN(numValue)) {
+    } else if (item.category === 'THERMANSI' && !isNaN(numValue)) {
       const updatedHeating = model.heatingSystems.map((sys) => ({
         ...sys,
         efficiency: numValue <= 1.0 ? numValue : numValue / 100,

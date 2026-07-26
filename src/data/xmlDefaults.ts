@@ -3,6 +3,8 @@ import { FullBuildingModel } from '../types/xmlKenak';
 export const DEFAULT_PRE79_BUILDING: FullBuildingModel = {
   buildingName: 'Διαμέρισμα 1ου Ορόφου (Τυπικό Πρωτόκολλο Αυτοψίας)',
   address: 'Λεωφόρος Κηφισίας 120, Αθήνα',
+  lat: 37.9925,
+  lng: 23.7630,
   prefecture: 'ΑΤΤΙΚΗΣ',
   municipality: 'ΑΘΗΝΑΙΩΝ',
   postcode: '11526',
@@ -156,7 +158,7 @@ export const DEFAULT_PRE79_BUILDING: FullBuildingModel = {
       type: 'SPLIT_INVERTER',
       powerKw: 3.5,
       eer: 3.20,
-      coverageRatio: 0.40, // Καλύπτει το 40% της κατοικίας
+      coverageRatio: 0.40,
     },
   ],
 
@@ -204,4 +206,112 @@ export const DEFAULT_PRE79_BUILDING: FullBuildingModel = {
       estimatedSavingPercent: 45.0,
     },
   ],
+};
+
+export const PRESET_PRE1979: FullBuildingModel = DEFAULT_PRE79_BUILDING;
+
+export const PRESET_KTHK_1979_2010: FullBuildingModel = {
+  ...DEFAULT_PRE79_BUILDING,
+  buildingName: 'Διαμέρισμα 1995 (Κανονισμός Θερμομόνωσης 1979 - ΚΘΚ)',
+  yearBuilt: 1995,
+  ageCategory: '1979_2010',
+  inspectorNotes: 'Κτίριο κατασκευασμένο με ΚΘΚ 1979. Διπλή τοιχοποιία με 3cm EPS (U=0.75 W/m²K). Διπλά αλουμίνια αθερμοδιακοπτόμενα (Uw=4.20 W/m²K). Ατομικός λέβητας φυσικού αερίου.',
+  opaqueSurfaces: DEFAULT_PRE79_BUILDING.opaqueSurfaces.map((s) => ({
+    ...s,
+    uValue: s.type === 'WALL' ? 0.75 : s.type === 'ROOF' ? 0.60 : 0.80,
+    deltaUtb: 0.15,
+  })),
+  openings: DEFAULT_PRE79_BUILDING.openings.map((o) => ({
+    ...o,
+    uWindow: 4.20,
+    gGlass: 0.75,
+    vInfiltration: 4.0,
+  })),
+  heatingSystems: [
+    {
+      id: 'heat-gas-1',
+      name: 'Ατομικός Λέβητας Φυσικού Αερίου (Συμβατικός 1995)',
+      type: 'GAS_BOILER',
+      fuel: 'NATURAL_GAS',
+      powerKw: 24.0,
+      efficiency: 0.90,
+      distributionEff: 0.96,
+      terminalEff: 0.93,
+      automationClass: 'C',
+      coverageRatio: 1.00,
+    },
+  ],
+};
+
+export const PRESET_KENAK_2010: FullBuildingModel = {
+  ...DEFAULT_PRE79_BUILDING,
+  buildingName: 'Νεόδμητο Διαμέρισμα 2015 (ΚΕΝΑΚ 2010 - Κατηγορία Β)',
+  yearBuilt: 2015,
+  ageCategory: 'POST_2010',
+  inspectorNotes: 'Νεόδμητη κατασκευή κατά ΚΕΝΑΚ 2010. Εξωτερική θερμοπρόσοψη 7cm EPS (U=0.40 W/m²K). Θερμοδιακοπτόμενα αλουμίνια με Low-E υαλοπίνακες (Uw=2.20 W/m²K).',
+  opaqueSurfaces: DEFAULT_PRE79_BUILDING.opaqueSurfaces.map((s) => ({
+    ...s,
+    uValue: s.type === 'WALL' ? 0.40 : s.type === 'ROOF' ? 0.35 : 0.45,
+    deltaUtb: 0.10,
+  })),
+  openings: DEFAULT_PRE79_BUILDING.openings.map((o) => ({
+    ...o,
+    uWindow: 2.20,
+    gGlass: 0.60,
+    vInfiltration: 2.0,
+  })),
+  heatingSystems: [
+    {
+      id: 'heat-condensing-1',
+      name: 'Ατομικός Λέβητας Συμπύκνωσης Φυσικού Αερίου (COP=0.98)',
+      type: 'GAS_BOILER',
+      fuel: 'NATURAL_GAS',
+      powerKw: 22.0,
+      efficiency: 0.98,
+      distributionEff: 0.98,
+      terminalEff: 0.95,
+      automationClass: 'B',
+      coverageRatio: 1.00,
+    },
+  ],
+};
+
+export const PRESET_EXOIKONOMO_APLUS: FullBuildingModel = {
+  ...DEFAULT_PRE79_BUILDING,
+  buildingName: 'Ανακαινισμένο Διαμέρισμα Εξοικονομώ (Κατηγορία A+)',
+  yearBuilt: 2024,
+  ageCategory: 'POST_2010',
+  inspectorNotes: 'Πλήρως αναβαθμισμένο κτίριο Εξοικονομώ. ETICS 10cm EPS (U=0.28 W/m²K). Κουφώματα PVC Low-E Argon (Uw=1.40 W/m²K). Αντλία Θερμότητας Inverter SCOP=4.2 & Φ/Β 3kWp.',
+  opaqueSurfaces: DEFAULT_PRE79_BUILDING.opaqueSurfaces.map((s) => ({
+    ...s,
+    uValue: 0.28,
+    deltaUtb: 0.05,
+  })),
+  openings: DEFAULT_PRE79_BUILDING.openings.map((o) => ({
+    ...o,
+    uWindow: 1.40,
+    gGlass: 0.50,
+    vInfiltration: 1.5,
+  })),
+  heatingSystems: [
+    {
+      id: 'heat-hp-1',
+      name: 'Αντλία Θερμότητας Αέρα-Νερού Inverter (SCOP=4.20)',
+      type: 'HEAT_PUMP',
+      fuel: 'ELECTRICITY',
+      powerKw: 9.0,
+      efficiency: 4.20,
+      distributionEff: 0.98,
+      terminalEff: 0.95,
+      automationClass: 'A',
+      coverageRatio: 1.00,
+    },
+  ],
+  renewableSystem: {
+    hasPv: true,
+    pvKwP: 3.0,
+    pvYieldKwhYear: 4200,
+    pvTilt: 30,
+    pvOrientation: 'S',
+  },
 };

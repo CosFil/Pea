@@ -216,11 +216,11 @@ export const CalculatorsTab: React.FC = () => {
     const currentModel = getXmlBuildingModel();
     saveXmlBuildingModel({
       ...currentModel,
-      grossArea: Number(grossFloorAreaCalc.toFixed(2)),
-      netArea: Number(netFloorAreaCalc.toFixed(2)),
+      grossArea: Number(grossAreaCalc.toFixed(2)),
+      netArea: Number(netAreaCalc.toFixed(2)),
       heatedVolume: Number(heatedVolumeCalc.toFixed(2)),
     });
-    setSyncSuccessMsg(`Ενημερώθηκαν τα Εμβαδά (A_gross=${grossFloorAreaCalc.toFixed(1)}m², A_net=${netFloorAreaCalc.toFixed(1)}m²) & Όγκος (V=${heatedVolumeCalc.toFixed(1)}m³) στο XML!`);
+    setSyncSuccessMsg(`Ενημερώθηκαν τα Εμβαδά (A_gross=${grossAreaCalc.toFixed(1)}m², A_net=${netAreaCalc.toFixed(1)}m²) & Όγκος (V=${heatedVolumeCalc.toFixed(1)}m³) στο XML!`);
     setTimeout(() => setSyncSuccessMsg(null), 4000);
   };
 

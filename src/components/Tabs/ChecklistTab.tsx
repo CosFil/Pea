@@ -34,6 +34,36 @@ export const ChecklistTab: React.FC = () => {
     localStorage.setItem('kenak_inspection_data', JSON.stringify(data));
   }, [data]);
 
+  // Sync with XML Building Model events
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      const model = e.detail;
+      if (model) {
+        setData((prev) => ({
+          ...prev,
+          buildingName: model.buildingName || prev.buildingName,
+          address: model.address || prev.address,
+          ownerName: model.ownerName || prev.ownerName,
+          afm: model.afm || prev.afm,
+          kaek: model.kaek || prev.kaek,
+          climateZone: model.climateZone || prev.climateZone,
+          yearBuilt: model.yearBuilt || prev.yearBuilt,
+          grossArea: model.grossArea || prev.grossArea,
+          netArea: model.netArea || prev.netArea,
+          heatedVolume: model.heatedVolume || prev.heatedVolume,
+          notes: model.inspectorNotes || prev.notes,
+        }));
+      }
+    };
+
+    window.addEventListener('kenakModelUpdated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('kenakModelUpdated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
   const handleCopyMarkdown = () => {
     const md = `
 # ΦΥΛΛΟ ΑΥΤΟΨΙΑΣ ΕΝΕΡΓΕΙΑΚΗΣ ΕΠΙΘΕΩΡΗΣΗΣ (ΠΕΑ)

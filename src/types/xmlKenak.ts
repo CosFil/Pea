@@ -106,6 +106,8 @@ export interface FullBuildingModel {
   isEntireBuilding?: boolean; // true = Ολόκληρο Κτίριο, false = Κτιριακή Μονάδα
   ownershipType?: string; // Ιδιοκτησιακό Καθεστώς (π.χ. Πλήρης Κυριότητα, Ενοίκιο)
   address: string;
+  lat?: number;
+  lng?: number;
   prefecture: string;
   municipality: string;
   postcode: string;

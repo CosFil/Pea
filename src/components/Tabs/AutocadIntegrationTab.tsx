@@ -31,6 +31,7 @@ import {
   FullBuildingModel 
 } from '../../types/xmlKenak';
 import { DEFAULT_PRE79_BUILDING } from '../../data/xmlDefaults';
+import { getXmlBuildingModel, saveXmlBuildingModel } from '../../utils/xmlModelStore';
 
 export interface ExtractedCadGeometry {
   totalGrossArea: number; // m²
@@ -297,7 +298,8 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
     const orientations: OrientationType[] = ['N', 'E', 'S', 'W'];
     
     // Check age category from current building model
-    const isPre1980 = DEFAULT_PRE79_BUILDING.ageCategory === 'PRE_1979' || DEFAULT_PRE79_BUILDING.yearBuilt < 1980;
+    const currentBuilding = getXmlBuildingModel();
+    const isPre1980 = currentBuilding.ageCategory === 'PRE_1979' || currentBuilding.yearBuilt < 1980;
     const defaultDeltaUtb = isPre1980 ? 0.00 : 0.20;
 
     if (wallsList.length > 0) {
@@ -508,15 +510,9 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
     });
   }, [parsedDxfObj, cadScaleFactor]);
 
-  // Apply 2. Αδιαφανή & 3. Διαφανή to XML Building Model in localStorage
+  // Apply 2. Αδιαφανή & 3. Διαφανή to XML Building Model in localStorage & store
   const handleApplyCadToXmlModel = () => {
-    let currentModel: FullBuildingModel = DEFAULT_PRE79_BUILDING;
-    const saved = localStorage.getItem('kenak_xml_building_model');
-    if (saved) {
-      try {
-        currentModel = JSON.parse(saved);
-      } catch (e) {}
-    }
+    const currentModel: FullBuildingModel = getXmlBuildingModel();
 
     const updatedModel: FullBuildingModel = {
       ...currentModel,
@@ -527,7 +523,7 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
       openings: cadOpenings,
     };
 
-    localStorage.setItem('kenak_xml_building_model', JSON.stringify(updatedModel));
+    saveXmlBuildingModel(updatedModel);
     setAppliedSuccessMsg(true);
     setTimeout(() => setAppliedSuccessMsg(false), 5000);
   };

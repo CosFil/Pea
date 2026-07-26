@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FullBuildingModel, OpaqueSurfaceInput, OpeningInput, HeatingSystemInput, CoolingSystemInput } from '../../types/xmlKenak';
-import { DEFAULT_PRE79_BUILDING } from '../../data/xmlDefaults';
+import { DEFAULT_PRE79_BUILDING, PRESET_PRE1979, PRESET_KTHK_1979_2010, PRESET_KENAK_2010, PRESET_EXOIKONOMO_APLUS } from '../../data/xmlDefaults';
 import { auditBuildingModel, generateKenakXml, parseKenakXml, AuditIssue } from '../../utils/xmlExporter';
+
 import { GREEK_CLIMATE_STATIONS } from '../../data/climateStations';
 import { ExoikonomoEvaluator } from '../ExoikonomoEvaluator';
 import { GoogleDriveSync } from '../GoogleDriveSync';
 import { generateOptimalScenarios, saveXmlBuildingModel } from '../../utils/xmlModelStore';
+import { PropertyMapModal } from '../PropertyMapModal';
 import { 
-
+  MapPin,
   FileCode, 
   Download, 
   Copy, 
@@ -29,6 +31,104 @@ import {
   Wind
 } from 'lucide-react';
 
+type ToteePeriod = 'PRE_1979' | '1979_2010' | 'POST_2010' | 'EXOIKONOMO';
+
+const PERIOD_LABELS: Record<ToteePeriod, string> = {
+  PRE_1979: 'Αμόνωτο Προ 1979 (1η Κατηγορία - Πίνακας 3.4α)',
+  '1979_2010': 'ΚΘΚ 1979-2010 (2η Κατηγορία - Πίνακας 3.4β)',
+  POST_2010: 'ΚΕΝΑΚ 2010-2017 (3η Κατηγορία - Πίνακας 3.3β)',
+  EXOIKONOMO: 'Εξοικονομώ (Κατηγορία A+ / NZEB)',
+};
+
+const PERIOD_SHORT_LABELS: Record<ToteePeriod, string> = {
+  PRE_1979: 'Προ 1979',
+  '1979_2010': 'ΚΘΚ (79-10)',
+  POST_2010: 'ΚΕΝΑΚ 2010',
+  EXOIKONOMO: 'Εξοικονομώ A+',
+};
+
+function detectPeriodFromModel(model: FullBuildingModel): ToteePeriod {
+  if (model.buildingName?.includes('Εξοικονομώ') || model.yearBuilt === 2024) {
+    return 'EXOIKONOMO';
+  }
+  if (model.ageCategory === 'POST_2010' || model.yearBuilt >= 2010) {
+    return 'POST_2010';
+  }
+  if (model.ageCategory === '1979_2010' || (model.yearBuilt >= 1979 && model.yearBuilt < 2010)) {
+    return '1979_2010';
+  }
+  return 'PRE_1979';
+}
+
+const TOTEE_OPAQUE_PRESETS: Record<ToteePeriod, Array<{ label: string; uValue: number; deltaUtb: number; tag: string }>> = {
+  PRE_1979: [
+    { label: 'Αμόνωτος Τοίχος 1972 (U=2.20, ΔU=0.00)', uValue: 2.20, deltaUtb: 0.00, tag: 'Πίν. 3.4α' },
+    { label: 'Αμόνωτο Δώμα (U=3.05, ΔU=0.00)', uValue: 3.05, deltaUtb: 0.00, tag: 'Πίν. 3.4α' },
+    { label: 'Αμόνωτη Πυλωτή (U=2.40, ΔU=0.00)', uValue: 2.40, deltaUtb: 0.00, tag: 'Πίν. 3.4α' },
+    { label: 'Σκυρόδεμα C12/15 (U=3.40, ΔU=0.00)', uValue: 3.40, deltaUtb: 0.00, tag: 'Πίν. 3.4α' },
+  ],
+  '1979_2010': [
+    { label: 'Τοίχος 3cm EPS (U=0.75, ΔU=0.15)', uValue: 0.75, deltaUtb: 0.15, tag: 'Πίν. 3.4β' },
+    { label: 'Δώμα 5cm EPS (U=0.60, ΔU=0.15)', uValue: 0.60, deltaUtb: 0.15, tag: 'Πίν. 3.4β' },
+    { label: 'Πυλωτή ΚΘΚ (U=0.80, ΔU=0.15)', uValue: 0.80, deltaUtb: 0.15, tag: 'Πίν. 3.4β' },
+    { label: 'Τοίχος Αμόνωτος ΚΘΚ (U=1.50, ΔU=0.15)', uValue: 1.50, deltaUtb: 0.15, tag: 'Πίν. 3.4β' },
+  ],
+  POST_2010: [
+    { label: 'Τοίχος ΚΕΝΑΚ Ζώνη Β (U=0.40, ΔU=0.10)', uValue: 0.40, deltaUtb: 0.10, tag: 'Πίν. 3.3β' },
+    { label: 'Δώμα ΚΕΝΑΚ Ζώνη Β (U=0.35, ΔU=0.10)', uValue: 0.35, deltaUtb: 0.10, tag: 'Πίν. 3.3β' },
+    { label: 'Πυλωτή ΚΕΝΑΚ (U=0.40, ΔU=0.10)', uValue: 0.40, deltaUtb: 0.10, tag: 'Πίν. 3.3β' },
+    { label: 'Θερμοπρόσοψη 7cm (U=0.38, ΔU=0.08)', uValue: 0.38, deltaUtb: 0.08, tag: 'Πίν. 3.3β' },
+  ],
+  EXOIKONOMO: [
+    { label: 'ETICS 10cm EPS Graphite (U=0.28, ΔU=0.05)', uValue: 0.28, deltaUtb: 0.05, tag: 'Εξοικονομώ A+' },
+    { label: 'Μόνωση Δώματος 12cm XPS (U=0.22, ΔU=0.05)', uValue: 0.22, deltaUtb: 0.05, tag: 'Εξοικονομώ A+' },
+    { label: 'Πυλωτή ETICS 10cm (U=0.25, ΔU=0.05)', uValue: 0.25, deltaUtb: 0.05, tag: 'Εξοικονομώ A+' },
+    { label: 'Παθητικό Wall 15cm (U=0.18, ΔU=0.02)', uValue: 0.18, deltaUtb: 0.02, tag: 'NZEB Passivhaus' },
+  ],
+};
+
+const TOTEE_OPENING_PRESETS: Record<ToteePeriod, Array<{ label: string; uWindow: number; gGlass: number; vInfiltration: number; tag: string }>> = {
+  PRE_1979: [
+    { label: 'Ξύλινο Μονό (U_w=5.00, v=8.5)', uWindow: 5.00, gGlass: 0.85, vInfiltration: 8.5, tag: 'Πίν. 3.12/3.14' },
+    { label: 'Αλουμίνιο Αθερμοδιακοπτόμενο Διπλό (U_w=4.50, v=5.0)', uWindow: 4.50, gGlass: 0.75, vInfiltration: 5.0, tag: 'Πίν. 3.12/3.14' },
+    { label: 'Μεταλλικό Μονό (U_w=5.70, v=10.0)', uWindow: 5.70, gGlass: 0.85, vInfiltration: 10.0, tag: 'Πίν. 3.12' },
+  ],
+  '1979_2010': [
+    { label: 'Αλουμίνιο Αθερμοδιακοπτόμενο Διπλό (U_w=4.20, v=4.0)', uWindow: 4.20, gGlass: 0.75, vInfiltration: 4.0, tag: 'Πίν. 3.12' },
+    { label: 'Ξύλινο/PVC Διπλό (U_w=3.20, v=3.0)', uWindow: 3.20, gGlass: 0.70, vInfiltration: 3.0, tag: 'Πίν. 3.12' },
+    { label: 'Αλουμίνιο Μικρή Θερμοδιακοπή (U_w=3.50, v=3.5)', uWindow: 3.50, gGlass: 0.70, vInfiltration: 3.5, tag: 'Πίν. 3.12' },
+  ],
+  POST_2010: [
+    { label: 'Θερμοδιακοπή Low-E Argon (U_w=2.20, v=2.0)', uWindow: 2.20, gGlass: 0.60, vInfiltration: 2.0, tag: 'Πίν. 3.3β' },
+    { label: 'PVC Ενεργειακό Low-E (U_w=1.80, v=1.5)', uWindow: 1.80, gGlass: 0.55, vInfiltration: 1.5, tag: 'Πίν. 3.12' },
+    { label: 'Αλουμίνιο Θερμοδιακοπή 24mm (U_w=2.50, v=2.0)', uWindow: 2.50, gGlass: 0.65, vInfiltration: 2.0, tag: 'Πίν. 3.12' },
+  ],
+  EXOIKONOMO: [
+    { label: 'PVC Low-E Argon (U_w=1.40, v=1.5)', uWindow: 1.40, gGlass: 0.50, vInfiltration: 1.5, tag: 'Εξοικονομώ A+' },
+    { label: 'Αλουμίνιο Thermal High (U_w=1.50, v=1.2)', uWindow: 1.50, gGlass: 0.50, vInfiltration: 1.2, tag: 'Εξοικονομώ A+' },
+    { label: 'Τριπλό Low-E Argon Passivhaus (U_w=0.90, v=0.8)', uWindow: 0.90, gGlass: 0.45, vInfiltration: 0.8, tag: 'NZEB Passivhaus' },
+  ],
+};
+
+const TOTEE_HEATING_PRESETS: Record<ToteePeriod, Array<{ label: string; type: any; fuel: any; efficiency: number; distributionEff: number; coverageRatio: number; tag: string }>> = {
+  PRE_1979: [
+    { label: 'Παλαιός Λέβητας Πετρελαίου (η_g=0.83, e_d=0.90)', type: 'OIL_BOILER', fuel: 'HEATING_OIL', efficiency: 0.83, distributionEff: 0.90, coverageRatio: 1.00, tag: 'Πίν. 4.2' },
+    { label: 'Τζάκι Ανοικτού Τύπου (η_g=0.25)', type: 'FIREPLACE_OPEN', fuel: 'BIOMASS', efficiency: 0.25, distributionEff: 1.00, coverageRatio: 0.20, tag: 'Πίν. 4.2' },
+  ],
+  '1979_2010': [
+    { label: 'Λέβητας Φυσικού Αερίου 1995 (η_g=0.90, e_d=0.96)', type: 'GAS_BOILER', fuel: 'NATURAL_GAS', efficiency: 0.90, distributionEff: 0.96, coverageRatio: 1.00, tag: 'Πίν. 4.2' },
+    { label: 'Συντηρημένος Λέβητας Πετρελαίου (η_g=0.88, e_d=0.92)', type: 'OIL_BOILER', fuel: 'HEATING_OIL', efficiency: 0.88, distributionEff: 0.92, coverageRatio: 1.00, tag: 'Πίν. 4.2' },
+  ],
+  POST_2010: [
+    { label: 'Λέβητας Συμπύκνωσης Αερίου (η_g=0.98, e_d=0.98)', type: 'GAS_CONDENSING', fuel: 'NATURAL_GAS', efficiency: 0.98, distributionEff: 0.98, coverageRatio: 1.00, tag: 'Πίν. 4.2' },
+    { label: 'Αντλία Θερμότητας Air-Water (COP=3.40)', type: 'HEAT_PUMP', fuel: 'ELECTRICITY', efficiency: 3.40, distributionEff: 0.96, coverageRatio: 1.00, tag: 'Πίν. 4.4' },
+  ],
+  EXOIKONOMO: [
+    { label: 'Αντλία Θερμότητας Inverter (SCOP=4.20)', type: 'HEAT_PUMP', fuel: 'ELECTRICITY', efficiency: 4.20, distributionEff: 0.98, coverageRatio: 1.00, tag: 'Εξοικονομώ A+' },
+    { label: 'Λέβητας Συμπύκνωσης Αερίου (η_g=1.02)', type: 'GAS_CONDENSING', fuel: 'NATURAL_GAS', efficiency: 1.02, distributionEff: 0.98, coverageRatio: 1.00, tag: 'Εξοικονομώ A+' },
+  ],
+};
+
 export const XmlExportTab: React.FC = () => {
   const [model, setModel] = useState<FullBuildingModel>(() => {
     const saved = localStorage.getItem('kenak_xml_building_model');
@@ -42,6 +142,12 @@ export const XmlExportTab: React.FC = () => {
 
   const [activeSection, setActiveSection] = useState<'ADMIN' | 'OPAQUE' | 'OPENINGS' | 'SYSTEMS' | 'SCENARIOS' | 'PREVIEW'>('ADMIN');
   const [copiedXml, setCopiedXml] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [toteePeriodFilter, setToteePeriodFilter] = useState<ToteePeriod>(() => detectPeriodFromModel(model));
+
+  useEffect(() => {
+    setToteePeriodFilter(detectPeriodFromModel(model));
+  }, [model.buildingName, model.yearBuilt, model.ageCategory]);
 
   // Sync to local storage
   const handleUpdateModel = (updated: FullBuildingModel) => {
@@ -110,32 +216,31 @@ export const XmlExportTab: React.FC = () => {
     setTimeout(() => setCopiedXml(false), 2000);
   };
 
+  const [presetToast, setPresetToast] = useState<string | null>(null);
+
   // Preset Loaders
+  const handleApplyPreset = (presetModel: FullBuildingModel, title: string) => {
+    handleUpdateModel(presetModel);
+    setPresetToast(`✅ Φορτώθηκε το Πρότυπο: "${title}"! Όλα τα 2.Αδιαφανή, 3.Διαφανή & 4.Συστήματα ενημερώθηκαν.`);
+    setTimeout(() => setPresetToast(null), 4500);
+  };
+
   const handleLoadPresetPre79 = () => {
-    handleUpdateModel(DEFAULT_PRE79_BUILDING);
+    handleApplyPreset(PRESET_PRE1979, 'Αμόνωτο Προ του 1979');
   };
 
   const handleLoadPresetKthk = () => {
-    const kthk: FullBuildingModel = {
-      ...DEFAULT_PRE79_BUILDING,
-      buildingName: 'Διαμέρισμα 1995 (Κανονισμός Θερμομόνωσης 1979)',
-      yearBuilt: 1995,
-      ageCategory: '1979_2010',
-      inspectorNotes: 'Κτίριο κατασκευασμένο με ΚΘΚ 1979. Διπλή τοιχοποιία με 3cm EPS. Διπλά αλουμίνια αθερμοδιακοπτόμενα.',
-      opaqueSurfaces: DEFAULT_PRE79_BUILDING.opaqueSurfaces.map((s) => ({
-        ...s,
-        uValue: s.type === 'WALL' ? 0.75 : s.type === 'ROOF' ? 0.60 : 0.80,
-        deltaUtb: 0.15,
-      })),
-      openings: DEFAULT_PRE79_BUILDING.openings.map((o) => ({
-        ...o,
-        uWindow: 4.50,
-        gGlass: 0.75,
-        vInfiltration: 4.0,
-      })),
-    };
-    handleUpdateModel(kthk);
+    handleApplyPreset(PRESET_KTHK_1979_2010, 'Κτίριο 1979-2010 (ΚΘΚ)');
   };
+
+  const handleLoadPresetKenak = () => {
+    handleApplyPreset(PRESET_KENAK_2010, 'Νεόδμητο ΚΕΝΑΚ 2010 (Κατ. B)');
+  };
+
+  const handleLoadPresetExoikonomo = () => {
+    handleApplyPreset(PRESET_EXOIKONOMO_APLUS, 'Ανακαινισμένο Εξοικονομώ (Κατ. A+)');
+  };
+
 
   // Opaque Actions
   const handleAddOpaque = () => {
@@ -247,24 +352,43 @@ export const XmlExportTab: React.FC = () => {
         {/* Preset Selector & Audit Status */}
         <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-slate-400 font-medium">Ταχεία Φόρτωση Προτύπου:</span>
+            <span className="text-slate-400 font-medium shrink-0">Ταχεία Φόρτωση Προτύπου:</span>
             <button
               onClick={handleLoadPresetPre79}
               type="button"
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 font-mono text-[11px] transition-colors cursor-pointer"
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 font-mono text-[11px] transition-all cursor-pointer hover:border-teal-500/50"
+              title="Φόρτωση τυπικού αμόνωτου κτιρίου προ του 1979"
             >
-              Αμόνωτο Προ του 1979
+              Αμόνωτο Προ 1979
             </button>
             <button
               onClick={handleLoadPresetKthk}
               type="button"
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 font-mono text-[11px] transition-colors cursor-pointer"
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 font-mono text-[11px] transition-all cursor-pointer hover:border-teal-500/50"
+              title="Φόρτωση κτιρίου με Κανονισμό Θερμομόνωσης 1979 (1979-2010)"
             >
-              Κτίριο 1979-2010 (ΚΘΚ)
+              ΚΘΚ (1979-2010)
+            </button>
+            <button
+              onClick={handleLoadPresetKenak}
+              type="button"
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-teal-300 rounded-lg border border-slate-700 font-mono text-[11px] transition-all cursor-pointer hover:border-teal-500/50"
+              title="Φόρτωση νεόδμητου κτιρίου ΚΕΝΑΚ 2010-2017 (Κατηγορία B)"
+            >
+              ΚΕΝΑΚ 2010 (Κατ. B)
+            </button>
+            <button
+              onClick={handleLoadPresetExoikonomo}
+              type="button"
+              className="px-2.5 py-1 bg-teal-950/80 hover:bg-teal-900 text-teal-300 rounded-lg border border-teal-800/80 font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1"
+              title="Φόρτωση πλήρως ανακαινισμένου κτιρίου Εξοικονομώ (Κατηγορία A+)"
+            >
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span>Εξοικονομώ (A+)</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <div className={`flex items-center gap-1.5 font-bold ${errorCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
               {errorCount > 0 ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
               <span>{errorCount === 0 ? 'Έλεγχος Πληρότητας: ΠΛΗΡΕΣ' : `${errorCount} Σφάλματα Πληρότητας`}</span>
@@ -274,6 +398,23 @@ export const XmlExportTab: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Animated Preset Load Confirmation Toast Banner */}
+        {presetToast && (
+          <div className="p-3 bg-teal-950/90 border border-teal-500/50 rounded-xl text-teal-200 text-xs font-semibold flex items-center justify-between gap-2 shadow-lg animate-fade-in">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
+              <span>{presetToast}</span>
+            </div>
+            <button
+              onClick={() => setPresetToast(null)}
+              type="button"
+              className="text-teal-400 hover:text-white text-xs font-mono px-1.5 py-0.5 rounded cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Google Drive Integration Panel */}
@@ -391,9 +532,60 @@ export const XmlExportTab: React.FC = () => {
       {/* SECTION 1: ADMIN & GENERAL */}
       {activeSection === 'ADMIN' && (
         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 space-y-6">
-          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 border-b pb-2 border-slate-100 dark:border-slate-800">
-            1. Διοικητικά & Γεωμετρικά Στοιχεία Επιθεωρούμενης Ζώνης
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 border-slate-100 dark:border-slate-800">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                1. Διοικητικά & Γεωμετρικά Στοιχεία Επιθεωρούμενης Ζώνης
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Ορίστε τη διεύθυνση, τα στοιχεία ιδιοκτήτη και τις συντεταγμένες του ακινήτου.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setIsMapModalOpen(true)}
+              type="button"
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+            >
+              <MapPin className="w-4 h-4 text-amber-300" />
+              <span>Επιλογή στο Google Maps 📍</span>
+            </button>
+          </div>
+
+          {/* Interactive Location Badge Banner */}
+          <div className="p-4 bg-slate-900 text-white rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg shrink-0">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-bold text-white text-sm">
+                  {model.address || 'Δεν ορίστηκε διεύθυνση'}
+                </div>
+                <div className="text-slate-400 font-mono text-[11px] flex items-center gap-2 flex-wrap">
+                  <span>Δήμος: <strong>{model.municipality || '-'}</strong></span>
+                  <span>•</span>
+                  <span>Νομός: <strong>{model.prefecture || '-'}</strong></span>
+                  <span>•</span>
+                  <span>Κλιματική Ζώνη: <strong className="text-teal-400">Ζώνη {model.climateZone}</strong></span>
+                  {model.lat && model.lng && (
+                    <>
+                      <span>•</span>
+                      <span className="text-teal-300">GPS: {model.lat}, {model.lng}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsMapModalOpen(true)}
+              type="button"
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition-colors"
+            >
+              Αλλαγή στο Χάρτη
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div>
@@ -687,7 +879,7 @@ export const XmlExportTab: React.FC = () => {
                 2. Αδιαφανή Στοιχεία Κελύφους (Τοίχοι, Δώματα, Πιλοτές, Δάπεδα)
               </h3>
               <p className="text-xs text-slate-500">
-                Καταχωρίστε τις επιφάνειες που διαωρίζουν το θερμαινόμενο χώρο από τον εξωτερικό αέρα, ΜΘΧ ή έδαφος.
+                Καταχωρίστε τις επιφάνειες που διαχωρίζουν το θερμαινόμενο χώρο από τον εξωτερικό αέρα, ΜΘΧ ή έδαφος.
               </p>
             </div>
 
@@ -699,6 +891,39 @@ export const XmlExportTab: React.FC = () => {
               <Plus className="w-4 h-4" />
               <span>Προσθήκη Αδιαφανούς</span>
             </button>
+          </div>
+
+          {/* TOTEE Period Banner */}
+          <div className="p-3 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+              <div>
+                <span className="font-bold text-slate-800 dark:text-teal-200 block sm:inline">
+                  Ταχείες Προτεινόμενες Τιμές ΤΟΤΕΕ:
+                </span>{' '}
+                <span className="text-teal-700 dark:text-teal-300 font-medium">
+                  {PERIOD_LABELS[toteePeriodFilter]}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] text-slate-500 font-semibold mr-1">Περίοδος ΤΟΤΕΕ:</span>
+              {(['PRE_1979', '1979_2010', 'POST_2010', 'EXOIKONOMO'] as const).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setToteePeriodFilter(period)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all cursor-pointer ${
+                    toteePeriodFilter === period
+                      ? 'bg-teal-600 text-white font-bold shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {PERIOD_SHORT_LABELS[period]}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* List of Opaque Surfaces */}
@@ -841,46 +1066,26 @@ export const XmlExportTab: React.FC = () => {
                 </div>
 
                 {/* Quick Helper presets */}
-                <div className="flex items-center gap-2 pt-1 text-[11px]">
-                  <span className="text-slate-400 font-medium">Ταχεία Προτεινόμενη Τιμή ΤΟΤΕΕ:</span>
-                  <button
-                    onClick={() => {
-                      const updated = [...model.opaqueSurfaces];
-                      updated[index].uValue = 2.20;
-                      updated[index].deltaUtb = 0.20;
-                      handleUpdateModel({ ...model, opaqueSurfaces: updated });
-                    }}
-                    type="button"
-                    className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 cursor-pointer"
-                  >
-                    Αμόνωτος Τοίχος Πριν 1979 (U=2.20)
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const updated = [...model.opaqueSurfaces];
-                      updated[index].uValue = 3.05;
-                      updated[index].deltaUtb = 0.20;
-                      handleUpdateModel({ ...model, opaqueSurfaces: updated });
-                    }}
-                    type="button"
-                    className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 cursor-pointer"
-                  >
-                    Αμόνωτο Δώμα (U=3.05)
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const updated = [...model.opaqueSurfaces];
-                      updated[index].uValue = 2.40;
-                      updated[index].deltaUtb = 0.20;
-                      handleUpdateModel({ ...model, opaqueSurfaces: updated });
-                    }}
-                    type="button"
-                    className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 cursor-pointer"
-                  >
-                    Αμόνωτη Πυλωτή (U=2.40)
-                  </button>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-700/60 text-[11px] flex-wrap">
+                  <span className="text-slate-500 dark:text-slate-400 font-semibold shrink-0">
+                    Ταχείες Προτεινόμενες Τιμές ΤΟΤΕΕ ({PERIOD_SHORT_LABELS[toteePeriodFilter]}):
+                  </span>
+                  {TOTEE_OPAQUE_PRESETS[toteePeriodFilter].map((preset) => (
+                    <button
+                      key={preset.label}
+                      onClick={() => {
+                        const updated = [...model.opaqueSurfaces];
+                        updated[index].uValue = preset.uValue;
+                        updated[index].deltaUtb = preset.deltaUtb;
+                        handleUpdateModel({ ...model, opaqueSurfaces: updated });
+                      }}
+                      type="button"
+                      className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors cursor-pointer font-medium"
+                      title={preset.tag}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}
@@ -909,6 +1114,39 @@ export const XmlExportTab: React.FC = () => {
               <Plus className="w-4 h-4" />
               <span>Προσθήκη Κουφώματος</span>
             </button>
+          </div>
+
+          {/* TOTEE Period Banner */}
+          <div className="p-3 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+              <div>
+                <span className="font-bold text-slate-800 dark:text-teal-200 block sm:inline">
+                  Ταχείες Προτεινόμενες Τιμές ΤΟΤΕΕ:
+                </span>{' '}
+                <span className="text-teal-700 dark:text-teal-300 font-medium">
+                  {PERIOD_LABELS[toteePeriodFilter]}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] text-slate-500 font-semibold mr-1">Περίοδος ΤΟΤΕΕ:</span>
+              {(['PRE_1979', '1979_2010', 'POST_2010', 'EXOIKONOMO'] as const).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setToteePeriodFilter(period)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all cursor-pointer ${
+                    toteePeriodFilter === period
+                      ? 'bg-teal-600 text-white font-bold shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {PERIOD_SHORT_LABELS[period]}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -1043,49 +1281,27 @@ export const XmlExportTab: React.FC = () => {
                 </div>
 
                 {/* Quick Presets */}
-                <div className="flex items-center gap-2 pt-1 text-[11px]">
-                  <span className="text-slate-400 font-medium">Ταχεία Επιλογή Τύπου:</span>
-                  <button
-                    onClick={() => {
-                      const updated = [...model.openings];
-                      updated[index].uWindow = 5.00;
-                      updated[index].gGlass = 0.85;
-                      updated[index].vInfiltration = 8.5;
-                      handleUpdateModel({ ...model, openings: updated });
-                    }}
-                    type="button"
-                    className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 cursor-pointer"
-                  >
-                    Ξύλινο Μονό (U_w=5.00)
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const updated = [...model.openings];
-                      updated[index].uWindow = 4.50;
-                      updated[index].gGlass = 0.75;
-                      updated[index].vInfiltration = 5.0;
-                      handleUpdateModel({ ...model, openings: updated });
-                    }}
-                    type="button"
-                    className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 cursor-pointer"
-                  >
-                    Αλουμίνιο Αθερμοδιακοπτόμενο Διπλό (U_w=4.50)
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const updated = [...model.openings];
-                      updated[index].uWindow = 2.20;
-                      updated[index].gGlass = 0.55;
-                      updated[index].vInfiltration = 2.0;
-                      handleUpdateModel({ ...model, openings: updated });
-                    }}
-                    type="button"
-                    className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 cursor-pointer"
-                  >
-                    Θερμοδιακοπή Low-E Argon (U_w=2.20)
-                  </button>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-700/60 text-[11px] flex-wrap">
+                  <span className="text-slate-500 dark:text-slate-400 font-semibold shrink-0">
+                    Ταχείες Προτεινόμενες Τιμές ΤΟΤΕΕ ({PERIOD_SHORT_LABELS[toteePeriodFilter]}):
+                  </span>
+                  {TOTEE_OPENING_PRESETS[toteePeriodFilter].map((preset) => (
+                    <button
+                      key={preset.label}
+                      onClick={() => {
+                        const updated = [...model.openings];
+                        updated[index].uWindow = preset.uWindow;
+                        updated[index].gGlass = preset.gGlass;
+                        updated[index].vInfiltration = preset.vInfiltration;
+                        handleUpdateModel({ ...model, openings: updated });
+                      }}
+                      type="button"
+                      className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors cursor-pointer font-medium"
+                      title={preset.tag}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}
@@ -1197,6 +1413,32 @@ export const XmlExportTab: React.FC = () => {
                     }}
                     className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-bold"
                   />
+                </div>
+
+                {/* Quick Presets for Heating */}
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-700/60 text-[11px] flex-wrap col-span-1 md:col-span-5">
+                  <span className="text-slate-500 dark:text-slate-400 font-semibold shrink-0">
+                    Ταχείες Προτεινόμενες Τιμές ΤΟΤΕΕ ({PERIOD_SHORT_LABELS[toteePeriodFilter]}):
+                  </span>
+                  {TOTEE_HEATING_PRESETS[toteePeriodFilter].map((preset) => (
+                    <button
+                      key={preset.label}
+                      onClick={() => {
+                        const updated = [...model.heatingSystems];
+                        updated[idx].type = preset.type;
+                        updated[idx].fuel = preset.fuel;
+                        updated[idx].efficiency = preset.efficiency;
+                        updated[idx].distributionEff = preset.distributionEff;
+                        updated[idx].coverageRatio = preset.coverageRatio;
+                        handleUpdateModel({ ...model, heatingSystems: updated });
+                      }}
+                      type="button"
+                      className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 rounded border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer font-medium"
+                      title={preset.tag}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}
@@ -1421,6 +1663,16 @@ export const XmlExportTab: React.FC = () => {
           </pre>
         </div>
       )}
+
+      {/* Property Google Maps Location Selector Modal */}
+      <PropertyMapModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        model={model}
+        onApplyLocation={(updatedFields) => {
+          handleUpdateModel({ ...model, ...updatedFields });
+        }}
+      />
     </div>
   );
 };
