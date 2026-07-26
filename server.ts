@@ -17,7 +17,36 @@ async function startServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Simple in-memory rate limiter for AI endpoint (max 15 requests / minute per IP)
+  const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
   app.post("/api/ai-assistant", async (req, res) => {
+    // 1. Rate Limiting Check
+    const clientIp = req.ip || req.socket.remoteAddress || "global";
+    const now = Date.now();
+    const rateData = rateLimitMap.get(clientIp) || { count: 0, resetTime: now + 60000 };
+
+    if (now > rateData.resetTime) {
+      rateData.count = 1;
+      rateData.resetTime = now + 60000;
+    } else {
+      rateData.count += 1;
+    }
+    rateLimitMap.set(clientIp, rateData);
+
+    if (rateData.count > 15) {
+      return res.status(429).json({
+        error: "Υπερβολικός αριθμός αιτημάτων. Παρακαλώ περιμένετε ένα λεπτό πριν προσπαθήσετε ξανά."
+      });
+    }
+
+    // 2. Request Timeout setup (30 seconds)
+    req.setTimeout(30000, () => {
+      if (!res.headersSent) {
+        res.status(504).json({ error: "Το αίτημα εξαντλήθηκε (Timeout). Παρακαλώ δοκιμάστε ξανά." });
+      }
+    });
+
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
