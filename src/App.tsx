@@ -20,6 +20,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAiOpen, setIsAiOpen] = useState(false);
 
+  const isAiEnabled = import.meta.env.VITE_ENABLE_AI_CONSULTANT === 'true';
+
   // If user searches from header, automatically focus or route to Database tab if on guide
   const handleSearchChange = (q: string) => {
     setSearchQuery(q);
@@ -37,6 +39,7 @@ export default function App() {
         searchQuery={searchQuery}
         setSearchQuery={handleSearchChange}
         onOpenAi={() => setIsAiOpen(true)}
+        showAiButton={isAiEnabled}
       />
 
       {/* Main Content Area */}
@@ -72,7 +75,9 @@ export default function App() {
       </footer>
 
       {/* Gemini AI Consultant Modal */}
-      <AiConsultantModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
+      {isAiEnabled && (
+        <AiConsultantModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
+      )}
     </div>
   );
 }

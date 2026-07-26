@@ -20,6 +20,7 @@ interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   onOpenAi: () => void;
+  showAiButton?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,8 +28,10 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   searchQuery,
   setSearchQuery,
-  onOpenAi
+  onOpenAi,
+  showAiButton
 }) => {
+  const isAiEnabled = showAiButton ?? (import.meta.env.VITE_ENABLE_AI_CONSULTANT === 'true');
   return (
     <header className="sticky top-0 z-30 bg-slate-900 text-slate-100 border-b border-slate-800 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -68,15 +71,18 @@ export const Header: React.FC<HeaderProps> = ({
               />
             </div>
 
-            {/* AI Assistant Button */}
-            <button
-              onClick={onOpenAi}
-              type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-medium rounded-md shadow-sm transition-all cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-teal-200" />
-              <span>AI Σύμβουλος ΚΕΝΑΚ</span>
-            </button>
+            {/* AI Assistant Button (Feature Flag Controlled) */}
+            {isAiEnabled && (
+              <button
+                onClick={onOpenAi}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-medium rounded-md shadow-sm transition-all cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-teal-200" />
+                <span>AI Σύμβουλος ΚΕΝΑΚ</span>
+              </button>
+            )}
+
           </div>
         </div>
 

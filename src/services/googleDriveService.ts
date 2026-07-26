@@ -9,12 +9,16 @@ import {
 } from 'firebase/auth';
 import firebaseConfigJson from '../../firebase-applet-config.json';
 
+const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+const jsonProjectId = firebaseConfigJson.projectId;
+const effectiveProjectId = envProjectId || jsonProjectId;
+
 const activeFirebaseConfig = {
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigJson.projectId,
+  projectId: effectiveProjectId,
   appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigJson.appId,
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigJson.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigJson.authDomain,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigJson.storageBucket,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || (effectiveProjectId && effectiveProjectId !== 'YOUR_FIREBASE_PROJECT_ID' ? `${effectiveProjectId}.firebaseapp.com` : firebaseConfigJson.authDomain),
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (effectiveProjectId && effectiveProjectId !== 'YOUR_FIREBASE_PROJECT_ID' ? `${effectiveProjectId}.appspot.com` : firebaseConfigJson.storageBucket),
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigJson.messagingSenderId,
   oAuthClientId: import.meta.env.VITE_FIREBASE_OAUTH_CLIENT_ID || firebaseConfigJson.oAuthClientId,
 };
