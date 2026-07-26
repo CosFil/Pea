@@ -1,0 +1,72 @@
+diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml
+index 5c75712..7ed654a 100644
+--- a/.github/workflows/deploy.yml
++++ b/.github/workflows/deploy.yml
+@@ -30,6 +30,16 @@ jobs:
+         run: npm install
+ 
+       - name: Build project
++        env:
++          VITE_ENABLE_AI_CONSULTANT: 'true'
++          VITE_GOOGLE_MAPS_PLATFORM_KEY: ${{ secrets.VITE_GOOGLE_MAPS_PLATFORM_KEY }}
++          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
++          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
++          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
++          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
++          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
++          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
++          VITE_FIREBASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_FIREBASE_OAUTH_CLIENT_ID }}
+         run: npm run build:gh-pages
+ 
+       - name: Upload artifact
+diff --git a/index.html b/index.html
+index 21dfe69..94703f2 100644
+--- a/index.html
++++ b/index.html
+@@ -1,9 +1,14 @@
+ <!doctype html>
+-<html lang="en">
++<html lang="el">
+   <head>
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <title>My Google AI Studio App</title>
++    <title>Οδηγός ΠΕΑ & ΤΕΕ-ΚΕΝΑΚ | Εργαλείο Ενεργειακών Επιθεωρητών</title>
++    <meta name="description" content="Διαδικτυακή εφαρμογή για Ενεργειακούς Επιθεωρητές & Μηχανικούς: υπολογισμοί ΚΕΝΑΚ, τυπικές τιμές ΤΟΤΕΕ 20701-1..5, εξαγωγή XML για ΤΕΕ-ΚΕΝΑΚ & buildingcert.gr." />
++    <meta property="og:title" content="Οδηγός ΠΕΑ & ΤΕΕ-ΚΕΝΑΚ" />
++    <meta property="og:description" content="Εργαλείο υπολογισμών, ελέγχου & εξαγωγής XML για Ενεργειακές Επιθεωρήσεις (ΚΕΝΑΚ / ΤΟΤΕΕ)." />
++    <meta property="og:type" content="website" />
++    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+   </head>
+   <body>
+     <div id="root"></div>
+diff --git a/public/favicon.svg b/public/favicon.svg
+new file mode 100644
+index 0000000..bd2d50c
+--- /dev/null
++++ b/public/favicon.svg
+@@ -0,0 +1,5 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
++  <rect width="64" height="64" rx="14" fill="#0f172a"/>
++  <path d="M32 8 L14 26 h6 v22 h9 V34 h6 v14 h9 V26 h6 Z" fill="#2dd4bf"/>
++  <path d="M35 20 L26 35 h6 l-3 11 12 -16 h-6 Z" fill="#fbbf24"/>
++</svg>
+diff --git a/src/components/AiConsultantModal.tsx b/src/components/AiConsultantModal.tsx
+index 4afc69a..d5dadf2 100644
+--- a/src/components/AiConsultantModal.tsx
++++ b/src/components/AiConsultantModal.tsx
+@@ -70,6 +70,14 @@ export const AiConsultantModal: React.FC<AiConsultantModalProps> = ({ isOpen, on
+         }),
+       });
+ 
++      const contentType = response.headers.get('content-type') || '';
++      if (!contentType.includes('application/json')) {
++        throw new Error(
++          'Ο Ψηφιακός Σύμβουλος χρειάζεται server-side λειτουργία (Node.js/Express) και δεν είναι διαθέσιμος σε στατικό hosting όπως το GitHub Pages. ' +
++          'Για να τον δοκιμάσετε, τρέξτε την εφαρμογή τοπικά (`npm run build && npm start`) ή αναπτύξτε τη σε περιβάλλον που υποστηρίζει server (π.χ. Cloud Run, Render).'
++        );
++      }
++
+       const resData = await response.json();
+ 
+       if (!response.ok) {
