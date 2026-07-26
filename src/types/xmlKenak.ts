@@ -27,6 +27,7 @@ export interface OpeningInput {
   vInfiltration: number; // m³/h/m²
   frameRatio: number; // F_f (0.20)
   orientation: OrientationType;
+  boundary?: BoundaryCondition;
   fOvH: number; // Overhang Winter (0.0 - 1.0)
   fOvC: number; // Overhang Summer (0.0 - 1.0)
   fFinH: number; // Side Fin Winter
@@ -61,7 +62,7 @@ export interface HeatingSystemInput {
 export interface CoolingSystemInput {
   id: string;
   name: string;
-  type: 'SPLIT_INVERTER' | 'SPLIT_ONOFF' | 'CHILLER' | 'HEAT_PUMP_COOLING' | 'NO_COOLING';
+  type: 'SPLIT_AC' | 'SPLIT_INVERTER' | 'SPLIT_ONOFF' | 'CHILLER' | 'HEAT_PUMP_COOLING' | 'NO_COOLING';
   powerKw: number; // kW
   eer: number; // EER (e.g. 3.50)
   coverageRatio: number; // 1.0 = 100%

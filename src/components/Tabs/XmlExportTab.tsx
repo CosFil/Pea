@@ -305,6 +305,35 @@ export const XmlExportTab: React.FC = () => {
     e.target.value = '';
   };
 
+  const handleUploadXmlFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm(`Είστε βέβαιοι ότι θέλετε να εισάγετε το μοντέλο από το αρχείο XML "${file.name}";`)) {
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const xmlContent = event.target?.result as string;
+        const parsed = parseKenakXml(xmlContent);
+        if (parsed) {
+          handleUpdateModel(parsed);
+          setPresetToast(`✅ Επιτυχής εισαγωγή μοντέλου από το αρχείο XML "${file.name}"!`);
+          setTimeout(() => setPresetToast(null), 4500);
+        } else {
+          alert('Μη αναγνωρίσιμο αρχείο XML ΤΕΕ-ΚΕΝΑΚ. Βεβαιωθείτε ότι είναι έγκυρο XML (ENR_IN ή kenak_building).');
+        }
+      } catch (err) {
+        alert('Αποτυχία ανάγνωσης αρχείου XML.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const [presetToast, setPresetToast] = useState<string | null>(null);
 
   // Preset Loaders
@@ -418,6 +447,15 @@ export const XmlExportTab: React.FC = () => {
 
           {/* Action Export Buttons */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <label
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl border border-slate-700 transition-all cursor-pointer"
+              title="Εισαγωγή αρχείου XML ΤΕΕ-ΚΕΝΑΚ / buildingcert"
+            >
+              <FileCode className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Εισαγωγή XML</span>
+              <input type="file" accept=".xml" onChange={handleUploadXmlFile} className="hidden" />
+            </label>
+
             <label
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl border border-slate-700 transition-all cursor-pointer"
               title="Εισαγωγή αποθηκευμένου μοντέλου JSON"
