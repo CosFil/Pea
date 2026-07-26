@@ -221,6 +221,41 @@ export const XmlExportTab: React.FC = () => {
     }
   };
 
+  // JSON Backup Handlers
+  const handleDownloadJsonBackup = () => {
+    const safeBuildingName = (model.buildingName || 'building').replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `PEA_MODEL_${model.afm || '000000000'}_${safeBuildingName}.json`;
+    const blob = new Blob([JSON.stringify(model, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleUploadJsonBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (parsed && typeof parsed === 'object') {
+          handleUpdateModel(parsed);
+          setPresetToast('✅ Επιτυχής εισαγωγή μοντέλου από αρχείο JSON!');
+          setTimeout(() => setPresetToast(null), 4000);
+        }
+      } catch (err) {
+        alert('Αποτυχία ανάγνωσης αρχείου JSON. Βεβαιωθείτε ότι το αρχείο είναι έγκυρο backup.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const [presetToast, setPresetToast] = useState<string | null>(null);
 
   // Preset Loaders
@@ -334,10 +369,29 @@ export const XmlExportTab: React.FC = () => {
 
           {/* Action Export Buttons */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <label
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl border border-slate-700 transition-all cursor-pointer"
+              title="Εισαγωγή αποθηκευμένου μοντέλου JSON"
+            >
+              <FileCode className="w-3.5 h-3.5 text-sky-400" />
+              <span>Εισαγωγή JSON</span>
+              <input type="file" accept=".json" onChange={handleUploadJsonBackup} className="hidden" />
+            </label>
+
+            <button
+              onClick={handleDownloadJsonBackup}
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl border border-slate-700 transition-all cursor-pointer"
+              title="Αποθήκευση πλήρους αντιγράφου ασφαλείας μοντέλου σε JSON"
+            >
+              <Save className="w-3.5 h-3.5 text-amber-400" />
+              <span>Backup JSON</span>
+            </button>
+
             <button
               onClick={handleCopyXml}
               type="button"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all cursor-pointer"
             >
               {copiedXml ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               <span>{copiedXml ? 'Αντιγράφηκε!' : 'Αντιγραφή XML'}</span>
@@ -349,7 +403,7 @@ export const XmlExportTab: React.FC = () => {
               className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-teal-900/40 transition-all cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              <span>Λήψη Αρχείου XML (.xml)</span>
+              <span>Λήψη XML (.xml)</span>
             </button>
           </div>
         </div>
