@@ -49,6 +49,17 @@ const PERIOD_SHORT_LABELS: Record<ToteePeriod, string> = {
   EXOIKONOMO: 'Εξοικονομώ A+',
 };
 
+type XmlSection = 'ADMIN' | 'OPAQUE' | 'OPENINGS' | 'SYSTEMS' | 'SCENARIOS' | 'PREVIEW';
+
+const XML_WIZARD_STEPS: Array<{ id: XmlSection; n: number; short: string }> = [
+  { id: 'ADMIN', n: 1, short: 'Γενικά & Στοιχεία Κτιρίου' },
+  { id: 'OPAQUE', n: 2, short: 'Αδιαφανή Στοιχεία' },
+  { id: 'OPENINGS', n: 3, short: 'Διαφανή Στοιχεία' },
+  { id: 'SYSTEMS', n: 4, short: 'Συστήματα (Θέρμανση/Ψύξη/ΖΝΧ)' },
+  { id: 'SCENARIOS', n: 5, short: 'Σενάρια Αναβάθμισης' },
+  { id: 'PREVIEW', n: 6, short: 'Προεπισκόπηση XML' },
+];
+
 function detectPeriodFromModel(model: FullBuildingModel): ToteePeriod {
   if (model.buildingName?.includes('Εξοικονομώ') || model.yearBuilt === 2024) {
     return 'EXOIKONOMO';
@@ -142,7 +153,12 @@ export const XmlExportTab: React.FC = () => {
     return DEFAULT_PRE79_BUILDING;
   });
 
-  const [activeSection, setActiveSection] = useState<'ADMIN' | 'OPAQUE' | 'OPENINGS' | 'SYSTEMS' | 'SCENARIOS' | 'PREVIEW'>('ADMIN');
+  const [activeSection, setActiveSection] = useState<XmlSection>('ADMIN');
+  const [visitedSections, setVisitedSections] = useState<Set<string>>(new Set(['ADMIN']));
+  const goToSection = (section: XmlSection) => {
+    setActiveSection(section);
+    setVisitedSections((prev) => new Set(prev).add(section));
+  };
   const [copiedXml, setCopiedXml] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [toteePeriodFilter, setToteePeriodFilter] = useState<ToteePeriod>(() => detectPeriodFromModel(model));
@@ -571,91 +587,65 @@ export const XmlExportTab: React.FC = () => {
       />
 
 
-      {/* Section Navigation Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs border-b border-slate-200 dark:border-slate-800">
-        <button
-          onClick={() => setActiveSection('ADMIN')}
-          type="button"
-          className={`px-4 py-2.5 rounded-t-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeSection === 'ADMIN'
-              ? 'bg-teal-600 text-white shadow'
-              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          <span>1. Γενικά & Στοιχεία Κτιρίου</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('OPAQUE')}
-          type="button"
-          className={`px-4 py-2.5 rounded-t-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeSection === 'OPAQUE'
-              ? 'bg-teal-600 text-white shadow'
-              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>2. Αδιαφανή (Τοίχοι, Δώματα, Πιλοτή)</span>
-          <span className="ml-1 px-1.5 py-0.2 bg-teal-900/40 text-teal-200 text-[10px] rounded-full">
-            {model.opaqueSurfaces.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('OPENINGS')}
-          type="button"
-          className={`px-4 py-2.5 rounded-t-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeSection === 'OPENINGS'
-              ? 'bg-teal-600 text-white shadow'
-              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Wind className="w-4 h-4" />
-          <span>3. Διαφανή (Κουφώματα & Σκιάσεις)</span>
-          <span className="ml-1 px-1.5 py-0.2 bg-teal-900/40 text-teal-200 text-[10px] rounded-full">
-            {model.openings.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('SYSTEMS')}
-          type="button"
-          className={`px-4 py-2.5 rounded-t-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeSection === 'SYSTEMS'
-              ? 'bg-teal-600 text-white shadow'
-              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Flame className="w-4 h-4" />
-          <span>4. Θέρμανση, Ψύξη, ΖΝΧ & ΑΠΕ</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('SCENARIOS')}
-          type="button"
-          className={`px-4 py-2.5 rounded-t-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeSection === 'SCENARIOS'
-              ? 'bg-teal-600 text-white shadow'
-              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>5. Σενάρια Αναβάθμισης ΠΕΑ</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('PREVIEW')}
-          type="button"
-          className={`px-4 py-2.5 rounded-t-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeSection === 'PREVIEW'
-              ? 'bg-teal-600 text-white shadow'
-              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <FileCode className="w-4 h-4" />
-          <span>6. Προεπισκόπηση XML</span>
-        </button>
+      {/* Step-by-step Wizard Navigation (the 6 steps to a ready XML) */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 px-3 sm:px-5 py-4 overflow-x-auto">
+        <div className="flex items-center min-w-max sm:min-w-0">
+          {([
+            { id: 'ADMIN' as const, n: 1, label: 'Γενικά & Στοιχεία Κτιρίου', short: 'Γενικά', icon: Building2, badge: null },
+            { id: 'OPAQUE' as const, n: 2, label: 'Αδιαφανή (Τοίχοι, Δώματα, Πιλοτή)', short: 'Αδιαφανή', icon: Layers, badge: model.opaqueSurfaces.length },
+            { id: 'OPENINGS' as const, n: 3, label: 'Διαφανή (Κουφώματα & Σκιάσεις)', short: 'Διαφανή', icon: Wind, badge: model.openings.length },
+            { id: 'SYSTEMS' as const, n: 4, label: 'Θέρμανση, Ψύξη, ΖΝΧ & ΑΠΕ', short: 'Συστήματα', icon: Flame, badge: null },
+            { id: 'SCENARIOS' as const, n: 5, label: 'Σενάρια Αναβάθμισης ΠΕΑ', short: 'Σενάρια', icon: Sparkles, badge: null },
+            { id: 'PREVIEW' as const, n: 6, label: 'Προεπισκόπηση XML', short: 'Προεπισκόπηση', icon: FileCode, badge: null },
+          ]).map((step, idx, arr) => {
+            const isActive = activeSection === step.id;
+            const isVisited = visitedSections.has(step.id) && !isActive;
+            const Icon = step.icon;
+            return (
+              <React.Fragment key={step.id}>
+                <button
+                  onClick={() => goToSection(step.id)}
+                  type="button"
+                  className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer group px-1"
+                  title={step.label}
+                >
+                  <div
+                    className={`relative w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                      isActive
+                        ? 'bg-gradient-to-br from-teal-600 to-emerald-600 text-white shadow-lg shadow-teal-900/30 ring-4 ring-teal-100 dark:ring-teal-900/40'
+                        : isVisited
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                    }`}
+                  >
+                    {isVisited ? <Check className="w-4.5 h-4.5" /> : <Icon className="w-4.5 h-4.5" />}
+                    {step.badge !== null && step.badge > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                        {step.badge}
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`text-[11px] font-semibold whitespace-nowrap ${
+                      isActive ? 'text-teal-700 dark:text-teal-300' : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    {step.n}. {step.short}
+                  </span>
+                </button>
+                {idx < arr.length - 1 && (
+                  <div
+                    className={`flex-1 h-0.5 min-w-[20px] sm:min-w-[36px] mx-1 sm:mx-2 mb-5 rounded-full transition-colors ${
+                      visitedSections.has(arr[idx + 1].id) || isVisited || isActive
+                        ? 'bg-teal-400 dark:bg-teal-600'
+                        : 'bg-slate-200 dark:bg-slate-800'
+                    }`}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
       {/* Audit Warning Panel if any issues */}
@@ -1809,6 +1799,53 @@ export const XmlExportTab: React.FC = () => {
           </pre>
         </div>
       )}
+
+      {/* Previous / Next Step Footer Navigation */}
+      {(() => {
+        const currentIdx = XML_WIZARD_STEPS.findIndex((s) => s.id === activeSection);
+        const prevStep = currentIdx > 0 ? XML_WIZARD_STEPS[currentIdx - 1] : null;
+        const nextStep = currentIdx < XML_WIZARD_STEPS.length - 1 ? XML_WIZARD_STEPS[currentIdx + 1] : null;
+        return (
+          <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3">
+            {prevStep ? (
+              <button
+                onClick={() => goToSection(prevStep.id)}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                <span>←</span>
+                <span className="hidden sm:inline">Βήμα {prevStep.n}: </span>
+                <span>{prevStep.short}</span>
+              </button>
+            ) : <div />}
+
+            <span className="text-[11px] font-mono text-slate-400 shrink-0">
+              Βήμα {currentIdx + 1} από {XML_WIZARD_STEPS.length}
+            </span>
+
+            {nextStep ? (
+              <button
+                onClick={() => goToSection(nextStep.id)}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-teal-600 hover:bg-teal-500 text-white shadow transition-all cursor-pointer"
+              >
+                <span className="hidden sm:inline">Βήμα {nextStep.n}: </span>
+                <span>{nextStep.short}</span>
+                <span>→</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleDownloadXml}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow transition-all cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Λήψη Τελικού XML</span>
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Property Google Maps Location Selector Modal */}
       <PropertyMapModal
