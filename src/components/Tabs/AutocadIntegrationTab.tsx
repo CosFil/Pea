@@ -295,6 +295,10 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
     // 1. OPAQUE SURFACES (2. Αδιαφανή)
     const opaques: OpaqueSurfaceInput[] = [];
     const orientations: OrientationType[] = ['N', 'E', 'S', 'W'];
+    
+    // Check age category from current building model
+    const isPre1980 = DEFAULT_PRE79_BUILDING.ageCategory === 'PRE_1979' || DEFAULT_PRE79_BUILDING.yearBuilt < 1980;
+    const defaultDeltaUtb = isPre1980 ? 0.00 : 0.20;
 
     if (wallsList.length > 0) {
       wallsList.forEach((w, idx) => {
@@ -305,7 +309,7 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
           type: 'WALL',
           area: Number((w.length * geo.floorHeight).toFixed(2)),
           uValue: 2.20,
-          deltaUtb: 0.15,
+          deltaUtb: defaultDeltaUtb,
           orientation: orient,
           tiltAngle: 90,
           boundary: 'EXTERNAL_AIR',
@@ -328,7 +332,7 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
           type: 'WALL',
           area: perSideArea,
           uValue: 2.20,
-          deltaUtb: 0.15,
+          deltaUtb: defaultDeltaUtb,
           orientation: s.orient,
           tiltAngle: 90,
           boundary: 'EXTERNAL_AIR',
@@ -345,7 +349,7 @@ export const AutocadIntegrationTab: React.FC<AutocadIntegrationTabProps> = ({ on
       type: 'ROOF',
       area: Number((geo.roofArea > 0 ? geo.roofArea : geo.totalGrossArea).toFixed(2)),
       uValue: 2.50,
-      deltaUtb: 0.10,
+      deltaUtb: defaultDeltaUtb,
       orientation: 'HORIZ',
       tiltAngle: 0,
       boundary: 'EXTERNAL_AIR',

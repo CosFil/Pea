@@ -140,13 +140,17 @@ export const CalculatorsTab: React.FC = () => {
   const handleApplyUToXml = () => {
     const currentModel = getXmlBuildingModel();
     const typeLabel = elementType === 'WALL' ? 'Τοίχος' : elementType === 'ROOF' ? 'Δώμα' : 'Πυλωτή';
+    const isPre1980 = currentModel.ageCategory === 'PRE_1979' || currentModel.yearBuilt < 1980;
+    const isCategory2 = currentModel.ageCategory === '1979_2010' || (currentModel.yearBuilt >= 1980 && currentModel.yearBuilt <= 2010);
+    const calculatedDeltaUtb = isPre1980 ? 0.00 : isCategory2 ? 0.20 : 0.10;
+
     const newSurf: OpaqueSurfaceInput = {
       id: `op-calc-${Date.now()}`,
       name: `${typeLabel} (Υπολογισμένο U=${U_calculated.toFixed(3)})`,
       type: elementType,
       area: 25.0,
       uValue: Number(U_calculated.toFixed(3)),
-      deltaUtb: 0.15,
+      deltaUtb: calculatedDeltaUtb,
       orientation: 'S',
       tiltAngle: elementType === 'ROOF' ? 0 : 90,
       boundary: elementType === 'FLOOR_PILOTI' ? 'UNHEATED_SPACE' : 'EXTERNAL_AIR',

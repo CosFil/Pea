@@ -69,3 +69,13 @@ export interface InspectionData {
   notes: string;
   inspectDate: string;
 }
+
+export interface QuizQuestion {
+  id: number;
+  question: string;
+  options: string[];
+  correctOptionIndex: number;
+  explanation: string;
+  source: string;
+  category: string;
+}
